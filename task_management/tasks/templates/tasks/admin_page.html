@@ -162,10 +162,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-database me-2 text-secondary"></i>Database
                 </span>
-                {% if database_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.database.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.database.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.database.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -248,10 +248,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-diagram-project me-2 text-secondary"></i>n8n
                 </span>
-                {% if n8n_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.n8n.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.n8n.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.n8n.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -313,10 +313,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-list-check me-2 text-secondary"></i>ClickUp
                 </span>
-                {% if clickup_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.clickup.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.clickup.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.clickup.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -377,10 +377,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-brands fa-whatsapp me-2 text-secondary"></i>WhatsApp
                 </span>
-                {% if whatsapp_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.whatsapp.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.whatsapp.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.whatsapp.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -446,10 +446,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-brands fa-telegram me-2 text-secondary"></i>Telegram
                 </span>
-                {% if telegram_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.telegram.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.telegram.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.telegram.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -510,10 +510,10 @@
                 <span class="fw-semibold">
                     <i class="fa fa-bolt me-2 text-secondary"></i>Redis Cache
                 </span>
-                {% if redis_cfg.is_active %}
-                <span class="badge bg-success rounded-pill">Active</span>
+                {% if conn_status.redis.ok %}
+                <span class="badge bg-success rounded-pill" title="{{ conn_status.redis.message }}">Active</span>
                 {% else %}
-                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                <span class="badge bg-danger rounded-pill" title="{{ conn_status.redis.message }}">Inactive</span>
                 {% endif %}
             </div>
             <div class="card-body">

@@ -18,6 +18,7 @@ from django.core.cache import cache
 import json
 import requests
 from redis import Redis
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib3.exceptions import InsecureRequestWarning
 import urllib3
 urllib3.disable_warnings(InsecureRequestWarning)
@@ -669,8 +670,8 @@ def email_config_save(request):
 
 
 def _test_email_config(cfg, to_addr=None):
-    if not cfg.is_active or not cfg.host or not cfg.username:
-        return {'ok': False, 'message': 'Email is not configured or not active. Save a valid config first.'}
+    if not cfg.host or not cfg.username:
+        return {'ok': False, 'message': 'Email is not configured. Save SMTP credentials first.'}
     to_addr = (to_addr or '').strip() or cfg.username
     try:
         backend = SMTPBackend(
@@ -719,6 +720,47 @@ def email_config_test(request):
     return redirect('admin-page')
 
 
+CONNECTION_CHECK_CACHE_KEY = 'admin_page_conn_status'
+CONNECTION_CHECK_CACHE_TTL = 300
+
+
+def _run_test(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:
+        return {'ok': False, 'message': f'Error: {e}'}
+
+
+def _auto_check_connections():
+    email_cfg = EmailConfig.get()
+    n8n_cfg = N8nConfig.get()
+    clickup_cfg = ClickUpConfig.get()
+    whatsapp_cfg = WhatsAppConfig.get()
+    telegram_cfg = TelegramConfig.get()
+    database_cfg = DatabaseConfig.get()
+    redis_cfg = RedisConfig.get()
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(_run_test, _test_email_config, email_cfg): 'email',
+            executor.submit(_run_test, _test_n8n_config, n8n_cfg): 'n8n',
+            executor.submit(_run_test, _test_clickup_config, clickup_cfg): 'clickup',
+            executor.submit(_run_test, _test_whatsapp_config, whatsapp_cfg): 'whatsapp',
+            executor.submit(_run_test, _test_telegram_config, telegram_cfg): 'telegram',
+            executor.submit(_run_test, _test_database_config, database_cfg): 'database',
+            executor.submit(_run_test, _test_redis_config, redis_cfg): 'redis',
+        }
+        for future in as_completed(futures):
+            key = futures[future]
+            results[key] = future.result()
+
+    for key in ('email', 'n8n', 'clickup', 'whatsapp', 'telegram', 'database', 'redis'):
+        results.setdefault(key, {'ok': False, 'message': 'Check failed'})
+
+    return results
+
+
 # ---------------------------------------------------------------------------
 # n8n configuration views
 # ---------------------------------------------------------------------------
@@ -727,6 +769,15 @@ def email_config_test(request):
 def admin_page(request):
     if request.method == 'POST' and request.POST.get('flush_cache'):
         cache.clear()
+
+    conn_status = cache.get(CONNECTION_CHECK_CACHE_KEY)
+    if conn_status is None:
+        try:
+            conn_status = _auto_check_connections()
+            cache.set(CONNECTION_CHECK_CACHE_KEY, conn_status, CONNECTION_CHECK_CACHE_TTL)
+        except Exception:
+            conn_status = {}
+
     teams = Team.objects.all()
     email_cfg = EmailConfig.get()
     n8n_cfg = N8nConfig.get()
@@ -752,6 +803,7 @@ def admin_page(request):
         'assignment_rules': assignment_rules,
         'presets':          json.dumps(PROVIDER_PRESETS),
         'admin_app_list':   admin_app_list,
+        'conn_status':      conn_status,
     })
 
 
@@ -785,8 +837,8 @@ def n8n_config_save(request):
 
 def _test_n8n_config(cfg):
     base_url = cfg.base_url.rstrip('/')
-    if not cfg.is_active or not base_url:
-        return {'ok': False, 'message': 'n8n is not configured or not active. Save a valid config first.'}
+    if not base_url:
+        return {'ok': False, 'message': 'n8n is not configured. Save a base URL first.'}
     try:
         headers = {}
         if cfg.api_key:
@@ -822,8 +874,8 @@ def n8n_config_test(request):
 # ---------------------------------------------------------------------------
 
 def _test_clickup_config(cfg):
-    if not cfg.is_active or not cfg.api_token:
-        return {'ok': False, 'message': 'ClickUp is not configured or not active. Save an API token first.'}
+    if not cfg.api_token:
+        return {'ok': False, 'message': 'ClickUp is not configured. Save an API token first.'}
     try:
         headers = {'Authorization': f'Bearer {cfg.api_token}'}
         resp = requests.get('https://api.clickup.com/api/v2/user', headers=headers, timeout=10, verify=False)
@@ -918,8 +970,8 @@ def redis_config_save(request):
 
 def _test_redis_config(cfg):
     url = cfg.url.strip()
-    if not cfg.is_active or not url:
-        return {'ok': False, 'message': 'Redis is not configured or not active. Save a valid URL first.'}
+    if not url:
+        return {'ok': False, 'message': 'Redis is not configured. Save a Redis URL first.'}
     try:
         client = Redis.from_url(url, socket_connect_timeout=5, socket_timeout=5)
         client.ping()
@@ -984,10 +1036,10 @@ def database_config_save(request):
 
 def _test_database_config(cfg):
     """Test database connectivity and return result dict."""
-    if not cfg.is_active or not cfg.name:
+    if not cfg.name:
         return {
             'ok': False,
-            'message': 'Database is not configured or not active. Save a valid config first.',
+            'message': 'Database is not configured. Save a database name first.',
         }
     try:
         if cfg.engine == 'sqlite3':
@@ -1032,14 +1084,36 @@ def database_config_test(request, cfg=None):
 
 
 def _test_whatsapp_config(cfg):
-    if not cfg.is_active or not cfg.api_token:
-        return {'ok': False, 'message': 'WhatsApp is not configured or not active. Save an API token first.'}
-    return {'ok': True, 'message': f'WhatsApp config saved ({cfg.phone_number_id or "no phone number"}).'}
+    if not cfg.api_token:
+        return {'ok': False, 'message': 'WhatsApp is not configured. Save an API token first.'}
+    try:
+        headers = {
+            'Authorization': f'Bearer {cfg.api_token}',
+            'Content-Type': 'application/json',
+        }
+        target = cfg.phone_number_id or cfg.business_account_id
+        if not target:
+            return {'ok': False, 'message': 'WhatsApp is not configured. Save a Phone Number ID or Business Account ID first.'}
+        resp = requests.get(
+            f'https://graph.facebook.com/v18.0/{target}',
+            headers=headers,
+            timeout=10,
+            params={'fields': 'id,name'},
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            name = data.get('name') or data.get('display_name') or target
+            return {'ok': True, 'message': f'WhatsApp connected ({name}).'}
+        if resp.status_code in (401, 403):
+            return {'ok': False, 'message': 'Unauthorized. The API token is invalid or expired.'}
+        return {'ok': False, 'message': f'WhatsApp responded with status {resp.status_code}.'}
+    except Exception as e:
+        return {'ok': False, 'message': f'Connection failed: {e}'}
 
 
 def _test_telegram_config(cfg):
-    if not cfg.is_active or not cfg.bot_token:
-        return {'ok': False, 'message': 'Telegram is not configured or not active. Save a bot token first.'}
+    if not cfg.bot_token:
+        return {'ok': False, 'message': 'Telegram is not configured. Save a bot token first.'}
     try:
         resp = requests.get(f'https://api.telegram.org/bot{cfg.bot_token}/getMe', timeout=10, verify=False)
         if resp.status_code == 200:
