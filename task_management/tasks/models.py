@@ -231,6 +231,38 @@ class ClickUpConfig(models.Model):
         return f'ClickUp Config ({self.workspace_id or "not set"})'
 
 
+class DatabaseConfig(models.Model):
+    ENGINE_CHOICES = [
+        ('postgresql', 'PostgreSQL'),
+        ('sqlite3',    'SQLite3'),
+    ]
+
+    engine   = models.CharField(max_length=20, choices=ENGINE_CHOICES, default='postgresql')
+    name     = models.CharField(max_length=255, default='taskdb')
+    user     = models.CharField(max_length=255, default='postgres')
+    password = models.CharField(max_length=255, blank=True)
+    host     = models.CharField(max_length=255, default='localhost')
+    port     = models.CharField(max_length=10, default='5008')
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tasks_databaseconfig'
+        verbose_name = 'Database Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f'Database Config ({self.get_engine_display()} - {self.name})'
+
+
 class EmailConfig(models.Model):
     """Singleton — only one row allowed. Stores SMTP outbound config."""
 
