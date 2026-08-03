@@ -562,28 +562,172 @@
                 </form>
             </div>
         </div>
+    </div>
+
+    <!-- Sync -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-arrows-rotate me-2 text-secondary"></i>Sync
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Sync tasks from external apps into Django.
+                </p>
+                <button class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#syncModal">
+                    <i class="fa fa-arrows-rotate me-1"></i>Sync from External App
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sync Modal -->
+<div class="modal fade" id="syncModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-arrows-rotate me-2"></i>Sync from External App</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sync-form" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Source</label>
+                        <select id="sync-source" class="form-select" required>
+                            <option value="">— Select source —</option>
+                            <option value="email">Email</option>
+                            <option value="teams">Microsoft Teams</option>
+                            <option value="clickup">ClickUp</option>
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="telegram">Telegram</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Items <span class="text-danger">*</span></label>
+                        <textarea id="sync-items" class="form-control font-monospace" rows="8" required
+                                  placeholder='[{"external_id": "ext-1", "title": "Task from external", "description": "Details", "status": "Open", "priority": "Medium"}]'></textarea>
+                        <div class="form-text">
+                            Paste a JSON array of items. Each item needs <code>external_id</code> and <code>title</code>.
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="sync-parse-btn">
+                            <i class="fa fa-magnifying-glass me-1"></i>Parse / Preview
+                        </button>
+                        <div id="sync-preview" class="mt-2"></div>
+                    </div>
+                </form>
+                <div id="sync-result" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="sync-submit-btn">
+                    <i class="fa fa-arrows-rotate me-1"></i>Sync Now
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-(function() {
-    function toggleVisibility(inputId, buttonId) {
-        const input = document.getElementById(inputId);
-        const btn = document.getElementById(buttonId);
-        if (!input || !btn) return;
-        btn.addEventListener('click', function() {
-            const isPassword = input.type === 'password';
-            input.type = isPassword ? 'text' : 'password';
-            btn.querySelector('i').className = isPassword ? 'fa fa-eye-slash' : 'fa fa-eye';
-        });
+function getSyncItems() {
+    const el = document.getElementById('sync-items');
+    if (!el) return '';
+    return (el.value || '').trim();
+}
+
+function renderSyncPreview() {
+    const itemsStr = getSyncItems();
+    const previewDiv = document.getElementById('sync-preview');
+
+    if (!itemsStr) {
+        previewDiv.innerHTML = '<div class="alert alert-warning py-2">Please paste JSON first.</div>';
+        return;
     }
-    toggleVisibility('db-password', 'toggle-db-password');
-    toggleVisibility('n8n-apikey', 'toggle-n8n-apikey');
-    toggleVisibility('clickup-apikey', 'toggle-clickup-apikey');
-    toggleVisibility('whatsap-apikey', 'toggle-whatsap-apikey');
-    toggleVisibility('telegram-bottoken', 'toggle-telegram-bottoken');
-})();
+
+    let items;
+    try { items = JSON.parse(itemsStr); } catch(e) {
+        previewDiv.innerHTML = '<div class="alert alert-danger py-2">Invalid JSON: ' + e.message + '</div>';
+        return;
+    }
+
+    if (!Array.isArray(items)) {
+        previewDiv.innerHTML = '<div class="alert alert-danger py-2">JSON must be an array of items.</div>';
+        return;
+    }
+
+    if (items.length === 0) {
+        previewDiv.innerHTML = '<div class="alert alert-warning py-2">Array is empty.</div>';
+        return;
+    }
+
+    const missing = items.filter(i => !i.external_id || !i.title);
+    if (missing.length) {
+        previewDiv.innerHTML = '<div class="alert alert-danger py-2">Each item must have external_id and title. ' + missing.length + ' item(s) missing fields.</div>';
+        return;
+    }
+
+    let html = '<div class="alert alert-success py-2"><strong>Parsed ' + items.length + ' item(s)</strong></div>';
+    html += '<ul class="list-unstyled small mb-0">';
+    items.slice(0, 5).forEach(function(it) {
+        html += '<li><strong>' + it.external_id + '</strong> — ' + it.title + ' <span class="text-muted">(' + (it.status || 'Open') + ', ' + (it.priority || 'Medium') + ')</span></li>';
+    });
+    if (items.length > 5) {
+        html += '<li class="text-muted">... and ' + (items.length - 5) + ' more</li>';
+    }
+    html += '</ul>';
+    previewDiv.innerHTML = html;
+}
+
+document.getElementById('sync-parse-btn').addEventListener('click', function() {
+    renderSyncPreview();
+});
+
+document.getElementById('sync-items').addEventListener('input', function() {
+    const itemsStr = (this.value || '').trim();
+    if (itemsStr) {
+        renderSyncPreview();
+    }
+});
+
+document.getElementById('sync-submit-btn').addEventListener('click', function() {
+    const source = document.getElementById('sync-source').value;
+    const itemsStr = getSyncItems();
+    const resultDiv = document.getElementById('sync-result');
+
+    if (!source) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please select a source.</div>'; return; }
+    if (!itemsStr) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please enter items JSON.</div>'; return; }
+
+    let items;
+    try { items = JSON.parse(itemsStr); } catch(e) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Invalid JSON: ' + e.message + '</div>'; return; }
+
+    const btn = document.getElementById('sync-submit-btn');
+    btn.disabled = true;
+    resultDiv.innerHTML = '<div class="alert alert-info py-2"><i class="fa fa-spinner fa-spin me-1"></i>Syncing...</div>';
+
+    fetch("/task-api/tasks/sync/", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ source: source, items: items }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        let html = '<div class="alert alert-success py-2"><strong>Sync complete</strong><br>';
+        html += 'Created: ' + data.created + ' | Updated: ' + data.updated + ' | Skipped: ' + data.skipped;
+        if (data.errors && data.errors.length) {
+            html += '<br><small class="text-danger">Errors: ' + data.errors.map(e => e.external_id + ' (' + e.error + ')').join(', ') + '</small>';
+        }
+        html += '</div>';
+        resultDiv.innerHTML = html;
+    })
+    .catch(err => {
+        resultDiv.innerHTML = '<div class="alert alert-danger py-2">Request failed: ' + err.message + '</div>';
+    })
+    .finally(() => { btn.disabled = false; });
+});
 </script>
 
 {% endblock %}

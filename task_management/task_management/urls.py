@@ -27,8 +27,9 @@ urlpatterns = [
     # Dashboard
     path('dashboard/',      v.dashboard_page,       name='dashboard'),
 
-    # Task list & HTMX partial
+    # Task list & HTMX partial (supports ?view=table|list|board|card)
     path('tasks/',          v.task_list_page,        name='task-list'),
+    path('tasks/board/',    v.task_list_page,        name='task-board'),
     path('tasks/rows/',     v.task_rows_partial,     name='task-rows'),
 
     # Task create
@@ -44,6 +45,7 @@ urlpatterns = [
     path('tasks/<int:pk>/delete/',        v.task_delete,        name='task-delete'),
     path('tasks/<int:pk>/assign/',        v.task_assign_form,   name='task-assign-form'),
     path('tasks/<int:pk>/do-assign/',     v.task_do_assign,     name='task-do-assign'),
+    path('tasks/<int:pk>/board-move/',    v.task_board_move,    name='task-board-move'),
 
     # HTMX dashboard partials
     path('partials/by-status/',   v.partial_by_status,   name='partial-by-status'),

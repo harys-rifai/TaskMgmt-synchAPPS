@@ -14,6 +14,7 @@ from django.core.mail import EmailMessage
 from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
 from datetime import datetime, timedelta
 from django.db.models import Count, Q
+from django.db import IntegrityError
 from django.core.cache import cache
 import json
 import requests
@@ -78,7 +79,7 @@ def _get_dashboard_metrics():
         'high_priority': Task.objects.filter(priority='High').count(),
         'overdue':       Task.objects.filter(
                              status__in=['Open', 'Assigned', 'In Progress'],
-                             closed_at__lt=now,
+                             created_at__lt=now - timedelta(days=7),
                          ).count(),
     }
     cache.set(CACHE_DASHBOARD, data, TTL_DASHBOARD)
@@ -262,6 +263,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 @login_required
+@login_required
 def partial_by_status(request):
     data = (
         cache.get(CACHE_BY_STATUS)
@@ -304,7 +306,14 @@ def dashboard_page(request):
 
 # ---------------------------------------------------------------------------
 # Template views — Task list with filtering + pagination
+# Supports multiple views: table (default), list, board, card
 # ---------------------------------------------------------------------------
+
+VIEW_MODE_TABLE = 'table'
+VIEW_MODE_LIST = 'list'
+VIEW_MODE_BOARD = 'board'
+VIEW_MODE_CARD = 'card'
+
 
 def _get_task_types():
     tt = cache.get(CACHE_TASK_TYPES)
@@ -314,13 +323,12 @@ def _get_task_types():
     return tt
 
 
-@login_required
-def task_list_page(request):
+def _get_filtered_tasks(request):
     qs = Task.objects.select_related('assign_to').all()
 
-    search   = request.GET.get('search', '').strip()
-    status   = request.GET.get('status', '').strip()
-    priority = request.GET.get('priority', '').strip()
+    search    = request.GET.get('search', '').strip()
+    status    = request.GET.get('status', '').strip()
+    priority  = request.GET.get('priority', '').strip()
     task_type = request.GET.get('task_type', '').strip()
 
     if search:
@@ -337,10 +345,26 @@ def task_list_page(request):
     if task_type:
         qs = qs.filter(task_type=task_type)
 
+    return qs, search, status, priority, task_type
+
+
+@login_required
+def task_list_page(request):
+    qs, search, status, priority, task_type = _get_filtered_tasks(request)
+    view_mode = request.GET.get('view', VIEW_MODE_TABLE)
+    if view_mode == VIEW_MODE_TABLE and request.path.rstrip('/').endswith('/tasks/board'):
+        view_mode = VIEW_MODE_BOARD
+
+    if view_mode == VIEW_MODE_BOARD:
+        return _render_board(request, qs, search, status, priority, task_type)
+    if view_mode == VIEW_MODE_CARD:
+        return _render_card(request, qs, search, status, priority, task_type)
+    if view_mode == VIEW_MODE_LIST:
+        return _render_list(request, qs, search, status, priority, task_type)
+
     paginator = Paginator(qs, 20)
     page_obj  = paginator.get_page(request.GET.get('page', 1))
 
-    # HTMX: return only the rows partial
     if request.headers.get('HX-Request') and request.headers.get('HX-Target') == 'task-table-body':
         return render(request, 'tasks/partials/task_rows.html', {'page_obj': page_obj})
 
@@ -355,6 +379,110 @@ def task_list_page(request):
             'search': search, 'status': status,
             'priority': priority, 'task_type': task_type,
         },
+        'view_mode': VIEW_MODE_TABLE,
+    })
+
+
+@login_required
+def _render_table(request, qs, search, status, priority, task_type):
+    paginator = Paginator(qs, 20)
+    page_obj  = paginator.get_page(request.GET.get('page', 1))
+
+    if request.headers.get('HX-Request') and request.headers.get('HX-Target') == 'task-table-body':
+        return render(request, 'tasks/partials/task_rows.html', {'page_obj': page_obj})
+
+    teams = Team.objects.filter(is_active=True)
+    return render(request, 'tasks/task_list.html', {
+        'page_obj':        page_obj,
+        'task_types':      _get_task_types(),
+        'status_choices':  STATUS_CHOICES,
+        'priority_choices': PRIORITY_CHOICES,
+        'teams':           teams,
+        'filters': {
+            'search': search, 'status': status,
+            'priority': priority, 'task_type': task_type,
+        },
+        'view_mode': VIEW_MODE_TABLE,
+    })
+
+
+@login_required
+def _render_list(request, qs, search, status, priority, task_type):
+    paginator = Paginator(qs, 20)
+    page_obj  = paginator.get_page(request.GET.get('page', 1))
+
+    if request.headers.get('HX-Request') and request.headers.get('HX-Target') == 'task-list-body':
+        return render(request, 'tasks/partials/task_list_rows.html', {'page_obj': page_obj})
+
+    teams = Team.objects.filter(is_active=True)
+    return render(request, 'tasks/task_list.html', {
+        'page_obj':        page_obj,
+        'task_types':      _get_task_types(),
+        'status_choices':  STATUS_CHOICES,
+        'priority_choices': PRIORITY_CHOICES,
+        'teams':           teams,
+        'filters': {
+            'search': search, 'status': status,
+            'priority': priority, 'task_type': task_type,
+        },
+        'view_mode': VIEW_MODE_LIST,
+    })
+
+
+@login_required
+def _render_board(request, qs, search, status, priority, task_type):
+    tasks = list(qs.order_by('-created_at'))
+    status_groups = []
+    for s in STATUS_CHOICES:
+        status_groups.append((s, [t for t in tasks if t.status == s]))
+    overflow = [t for t in tasks if t.status not in STATUS_CHOICES]
+    if overflow:
+        status_groups.append(('Other', overflow))
+
+    if request.headers.get('HX-Request'):
+        return render(request, 'tasks/partials/task_board.html', {
+            'status_groups': status_groups,
+            'filters': {
+                'search': search, 'status': status,
+                'priority': priority, 'task_type': task_type,
+            },
+        })
+
+    teams = Team.objects.filter(is_active=True)
+    return render(request, 'tasks/task_list.html', {
+        'status_groups':   status_groups,
+        'task_types':      _get_task_types(),
+        'status_choices':  STATUS_CHOICES,
+        'priority_choices': PRIORITY_CHOICES,
+        'teams':           teams,
+        'filters': {
+            'search': search, 'status': status,
+            'priority': priority, 'task_type': task_type,
+        },
+        'view_mode': VIEW_MODE_BOARD,
+    })
+
+
+@login_required
+def _render_card(request, qs, search, status, priority, task_type):
+    paginator = Paginator(qs, 24)
+    page_obj  = paginator.get_page(request.GET.get('page', 1))
+
+    if request.headers.get('HX-Request') and request.headers.get('HX-Target') == 'task-cards-body':
+        return render(request, 'tasks/partials/task_cards.html', {'page_obj': page_obj})
+
+    teams = Team.objects.filter(is_active=True)
+    return render(request, 'tasks/task_list.html', {
+        'page_obj':        page_obj,
+        'task_types':      _get_task_types(),
+        'status_choices':  STATUS_CHOICES,
+        'priority_choices': PRIORITY_CHOICES,
+        'teams':           teams,
+        'filters': {
+            'search': search, 'status': status,
+            'priority': priority, 'task_type': task_type,
+        },
+        'view_mode': VIEW_MODE_CARD,
     })
 
 
@@ -384,17 +512,31 @@ def task_create_page(request):
         if not errors:
             assign_to_id = request.POST.get('assign_to') or None
             job_id = request.POST.get('job_id', '').strip() or Task.get_next_job_id()
-            Task.objects.create(
-                job_id        = job_id,
-                email_from    = request.POST['email_from'].strip(),
-                email_subject = request.POST['email_subject'].strip(),
-                task_type     = request.POST['task_type'].strip(),
-                task_detail   = request.POST['task_detail'].strip(),
-                priority      = request.POST['priority'],
-                status        = request.POST.get('status', 'Open'),
-                note          = request.POST.get('note', '').strip(),
-                assign_to_id  = assign_to_id,
-            )
+            try:
+                Task.objects.create(
+                    job_id        = job_id,
+                    email_from    = request.POST['email_from'].strip(),
+                    email_subject = request.POST['email_subject'].strip(),
+                    task_type     = request.POST['task_type'].strip(),
+                    task_detail   = request.POST['task_detail'].strip(),
+                    priority      = request.POST['priority'],
+                    status        = request.POST.get('status', 'Open'),
+                    note          = request.POST.get('note', '').strip(),
+                    assign_to_id  = assign_to_id,
+                )
+            except IntegrityError:
+                job_id = Task.get_next_job_id()
+                Task.objects.create(
+                    job_id        = job_id,
+                    email_from    = request.POST['email_from'].strip(),
+                    email_subject = request.POST['email_subject'].strip(),
+                    task_type     = request.POST['task_type'].strip(),
+                    task_detail   = request.POST['task_detail'].strip(),
+                    priority      = request.POST['priority'],
+                    status        = request.POST.get('status', 'Open'),
+                    note          = request.POST.get('note', '').strip(),
+                    assign_to_id  = assign_to_id,
+                )
             _invalidate_task_caches()
             if request.headers.get('HX-Request'):
                 response = HttpResponse(status=204)
@@ -486,6 +628,20 @@ def task_update_status(request, pk):
         task.save(update_fields=['status', 'closed_at'])
         _invalidate_task_caches()
     return render(request, 'tasks/partials/status_badge.html', {'task': task})
+
+
+@require_http_methods(['POST'])
+@login_required
+def task_board_move(request, pk):
+    task = get_object_or_404(Task, pk=pk)
+    new_status = request.POST.get('status', '').strip()
+    if new_status in STATUS_CHOICES:
+        task.status = new_status
+        if new_status == 'Closed' and not task.closed_at:
+            task.closed_at = timezone.now()
+        task.save(update_fields=['status', 'closed_at'])
+        _invalidate_task_caches()
+    return HttpResponse(status=204)
 
 
 @require_http_methods(['POST'])

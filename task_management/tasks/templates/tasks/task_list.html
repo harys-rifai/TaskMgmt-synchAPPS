@@ -8,24 +8,58 @@
         <i class="fa fa-list-check me-2 text-primary"></i>Tasks
         <small class="ms-2">{{ page_obj.paginator.count }} total</small>
     </h1>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">
-        <i class="fa fa-plus me-1"></i>New Task
-    </button>
-    <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#syncModal">
-        <i class="fa fa-arrows-rotate me-1"></i>Sync
-    </button>
+    <div class="d-flex gap-2">
+        <div class="btn-group" role="group" aria-label="View switcher">
+            <a href="?view=table&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}"
+               class="btn btn-sm {% if view_mode == 'table' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+               title="Table view">
+                <i class="fa fa-table"></i>
+            </a>
+            <a href="?view=list&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}"
+               class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+               title="List view">
+                <i class="fa fa-list"></i>
+            </a>
+            <a href="?view=board&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}"
+               class="btn btn-sm {% if view_mode == 'board' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+               title="Board view">
+                <i class="fa fa-columns"></i>
+            </a>
+            <a href="?view=card&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}"
+               class="btn btn-sm {% if view_mode == 'card' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+               title="Card view">
+                <i class="fa fa-grip"></i>
+            </a>
+        </div>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="fa fa-plus me-1"></i>New Task
+        </button>
+        <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#syncModal">
+            <i class="fa fa-arrows-rotate me-1"></i>Sync
+        </button>
+    </div>
 </div>
 
 <!-- Filters -->
 <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
-        <form id="filter-form" method="get" action="/tasks/"
-              hx-get="/tasks/"
+        {% if view_mode == 'board' %}
+        <form id="filter-form" method="get" action="/tasks/board/"
+              hx-get="/tasks/board/"
               hx-trigger="change from:select, keyup changed delay:400ms from:input[name=search]"
-              hx-target="#task-table-body"
+              hx-target="#task-board-container"
               hx-swap="innerHTML"
               hx-include="#filter-form"
               hx-push-url="true">
+        {% else %}
+        <form id="filter-form" method="get" action="/tasks/"
+              hx-get="/tasks/"
+              hx-trigger="change from:select, keyup changed delay:400ms from:input[name=search]"
+              hx-target="{% if view_mode == 'list' %}#task-list-body{% elif view_mode == 'card' %}#task-cards-body{% else %}#task-table-body{% endif %}"
+              hx-swap="innerHTML"
+              hx-include="#filter-form"
+              hx-push-url="true">
+        {% endif %}
             <div class="row g-2 align-items-end">
                 <div class="col-md-4">
                     <div class="input-group input-group-sm">
@@ -69,7 +103,8 @@
     </div>
 </div>
 
-<!-- Table -->
+{% if view_mode == 'table' %}
+<!-- Table View -->
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -103,7 +138,7 @@
             <ul class="pagination pagination-sm mb-0">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                    <a class="page-link" href="?view=table&page={{ page_obj.previous_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
                         <i class="fa fa-chevron-left"></i>
                     </a>
                 </li>
@@ -113,13 +148,13 @@
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">{{ num }}</a>
+                        <a class="page-link" href="?view=table&page={{ num }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">{{ num }}</a>
                     </li>
                     {% endif %}
                 {% endfor %}
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                    <a class="page-link" href="?view=table&page={{ page_obj.next_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
                         <i class="fa fa-chevron-right"></i>
                     </a>
                 </li>
@@ -129,6 +164,102 @@
     </div>
     {% endif %}
 </div>
+
+{% elif view_mode == 'list' %}
+<!-- List View -->
+<div class="card shadow-sm">
+    <div id="task-list-body">
+        {% include 'tasks/partials/task_list_rows.html' %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted">
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+            of {{ page_obj.paginator.count }}
+        </small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?view=list&page={{ page_obj.previous_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                        <i class="fa fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                    <li class="page-item">
+                        <a class="page-link" href="?view=list&page={{ num }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?view=list&page={{ page_obj.next_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                        <i class="fa fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% elif view_mode == 'board' %}
+<!-- Board (Kanban) View -->
+<div id="task-board-container">
+    {% include 'tasks/partials/task_board.html' %}
+</div>
+
+{% elif view_mode == 'card' %}
+<!-- Card View -->
+<div id="task-cards-body">
+    {% include 'tasks/partials/task_cards.html' %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="card-footer bg-white d-flex justify-content-between align-items-center py-2 mt-2">
+    <small class="text-muted">
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+        of {{ page_obj.paginator.count }}
+    </small>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?view=card&page={{ page_obj.previous_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                    <i class="fa fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <li class="page-item">
+                    <a class="page-link" href="?view=card&page={{ num }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?view=card&page={{ page_obj.next_page_number }}&search={{ filters.search }}&status={{ filters.status }}&priority={{ filters.priority }}&task_type={{ filters.task_type }}">
+                    <i class="fa fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+
+{% endif %}
 
 <!-- Create Task Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
@@ -257,8 +388,14 @@
 </div>
 
 <script>
-document.getElementById('sync-parse-btn').addEventListener('click', function() {
-    const itemsStr = document.getElementById('sync-items').value.trim();
+function getSyncItems() {
+    const el = document.getElementById('sync-items');
+    if (!el) return '';
+    return (el.value || '').trim();
+}
+
+function renderSyncPreview() {
+    const itemsStr = getSyncItems();
     const previewDiv = document.getElementById('sync-preview');
 
     if (!itemsStr) {
@@ -298,11 +435,22 @@ document.getElementById('sync-parse-btn').addEventListener('click', function() {
     }
     html += '</ul>';
     previewDiv.innerHTML = html;
+}
+
+document.getElementById('sync-parse-btn').addEventListener('click', function() {
+    renderSyncPreview();
+});
+
+document.getElementById('sync-items').addEventListener('input', function() {
+    const itemsStr = (this.value || '').trim();
+    if (itemsStr) {
+        renderSyncPreview();
+    }
 });
 
 document.getElementById('sync-submit-btn').addEventListener('click', function() {
     const source = document.getElementById('sync-source').value;
-    const itemsStr = document.getElementById('sync-items').value.trim();
+    const itemsStr = getSyncItems();
     const resultDiv = document.getElementById('sync-result');
 
     if (!source) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please select a source.</div>'; return; }
@@ -339,4 +487,88 @@ document.getElementById('sync-submit-btn').addEventListener('click', function() 
     .finally(() => { btn.disabled = false; });
 });
 </script>
+
+{% if view_mode == 'board' %}
+<script>
+(function() {
+    const container = document.getElementById('task-board-container');
+    if (!container) return;
+
+    let draggedEl = null;
+
+    container.addEventListener('dragstart', function(e) {
+        const task = e.target.closest('.draggable-task');
+        if (!task) return;
+        draggedEl = task;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', task.dataset.taskId);
+        task.style.opacity = '0.4';
+    });
+
+    container.addEventListener('dragend', function(e) {
+        const task = e.target.closest('.draggable-task');
+        if (task) task.style.opacity = '1';
+        draggedEl = null;
+        container.querySelectorAll('.board-column').forEach(function(col) {
+            col.classList.remove('bg-warning', 'bg-opacity-10');
+        });
+    });
+
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const column = e.target.closest('.board-column');
+        if (!column) return;
+        e.dataTransfer.dropEffect = 'move';
+        column.style.background = '#e9ecef';
+    });
+
+    container.addEventListener('dragleave', function(e) {
+        const column = e.target.closest('.board-column');
+        if (column) column.style.background = '';
+    });
+
+    container.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const column = e.target.closest('.board-column');
+        if (!column || !draggedEl) return;
+        column.style.background = '';
+
+        const taskId = draggedEl.dataset.taskId;
+        const newStatus = column.dataset.status;
+        const oldStatus = draggedEl.dataset.taskStatus;
+
+        if (oldStatus === newStatus) return;
+
+        const csrfToken = '{{ csrf_token }}';
+        const formData = new FormData();
+        formData.append('status', newStatus);
+
+        fetch(`/tasks/${taskId}/board-move/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+            },
+            body: formData,
+            credentials: 'same-origin',
+        })
+        .then(function(r) {
+            if (r.status === 204) {
+                const params = new URLSearchParams(window.location.search);
+                params.set('view', 'board');
+                htmx.ajax('GET', `${window.location.pathname}?${params.toString()}`, {
+                    target: '#task-board-container',
+                    swap: 'innerHTML',
+                    push: false,
+                });
+            } else {
+                console.error('Move failed with status', r.status);
+            }
+        })
+        .catch(function(err) {
+            console.error('Move failed:', err);
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

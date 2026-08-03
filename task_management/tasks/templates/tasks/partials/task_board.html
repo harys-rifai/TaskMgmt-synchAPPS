@@ -1,0 +1,51 @@
+<div class="row g-3">
+    {% for s, tasks_in_col in status_groups %}
+    <div class="col-md-6 col-xl-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center bg-light">
+                <strong class="small">{{ s }}</strong>
+                <span class="badge bg-secondary">{{ tasks_in_col|length }}</span>
+            </div>
+            <div class="card-body p-2 board-column" style="min-height:200px; background:#f8f9fa;" data-status="{{ s }}">
+                {% if tasks_in_col %}
+                <div class="list-group list-group-flush">
+                    {% for task in tasks_in_col %}
+                    <div class="list-group-item p-2 mb-2 bg-white rounded shadow-sm priority-{{ task.priority }} draggable-task"
+                         draggable="true"
+                         data-task-id="{{ task.id }}"
+                         data-task-status="{{ task.status }}"
+                         id="task-board-{{ task.id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none small">{{ task.job_id }}</a>
+                                <div class="small text-truncate mt-1" style="max-width:180px;" title="{{ task.email_subject }}">{{ task.email_subject }}</div>
+                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                    {% if task.priority == 'High' %}<span class="badge bg-danger" style="font-size:.65rem;">High</span>
+                                    {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
+                                    {% else %}<span class="badge bg-success" style="font-size:.65rem;">Low</span>{% endif %}
+                                    {% if task.assign_to %}<span class="badge bg-info text-dark" style="font-size:.65rem;">{{ task.assign_to.name }}</span>{% endif %}
+                                </div>
+                                <div class="small text-muted mt-1">{{ task.updated_at|date:"d M H:i" }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2 d-flex gap-1">
+                            <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0 flex-grow-1" style="font-size:.7rem;">Edit</a>
+                            <button class="btn btn-xs btn-outline-danger py-0"
+                                    hx-post="/tasks/{{ task.id }}/delete/"
+                                    hx-confirm="Delete?"
+                                    hx-target="#task-board-{{ task.id }}"
+                                    hx-swap="outerHTML swap:0.3s"
+                                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                    style="font-size:.7rem;">Del</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4 small">No tasks</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

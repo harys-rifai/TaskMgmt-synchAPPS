@@ -108,6 +108,56 @@
         /* ── HTMX indicator ── */
         .htmx-indicator { display: none; }
         .htmx-request .htmx-indicator { display: inline-block; }
+
+        /* ── Board (Kanban) columns ── */
+        #task-board-container .card {
+            border: none;
+            border-radius: 12px;
+        }
+        #task-board-container .card-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        #task-board-container .list-group-item {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: grab;
+        }
+        #task-board-container .list-group-item:last-child {
+            margin-bottom: 0;
+        }
+        #task-board-container .list-group-item:active {
+            cursor: grabbing;
+        }
+        #task-board-container .board-column.drag-over {
+            background: #e3f2fd !important;
+        }
+
+        /* ── Card view ── */
+        .task-card {
+            border: none;
+            border-radius: 12px;
+            transition: transform .15s, box-shadow .15s;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,.1) !important;
+        }
+
+        /* ── List view ── */
+        #task-list-body .list-group-item {
+            border-left: 4px solid transparent;
+            transition: background .1s;
+        }
+        #task-list-body .list-group-item:hover {
+            background: #f8f9fa;
+        }
+
+        /* ── View switcher buttons ── */
+        .btn-group .btn {
+            min-width: 36px;
+        }
     </style>
 </head>
 <body>
