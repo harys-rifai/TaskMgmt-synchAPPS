@@ -28,7 +28,7 @@ class EmailConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_emailconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -76,7 +76,7 @@ class N8nConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_n8nconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -123,7 +123,7 @@ class RedisConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_redisconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -169,7 +169,7 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_clickupconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'

@@ -18,6 +18,9 @@ from django.core.cache import cache
 import json
 import requests
 from redis import Redis
+from urllib3.exceptions import InsecureRequestWarning
+import urllib3
+urllib3.disable_warnings(InsecureRequestWarning)
 from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, TaskSync, RedisConfig, AssignmentRule, PROVIDER_PRESETS
 from .serializers import (
     TeamSerializer, TaskSerializer,
@@ -812,7 +815,7 @@ def _test_clickup_config(cfg):
         return {'ok': False, 'message': 'ClickUp is not configured or not active. Save an API token first.'}
     try:
         headers = {'Authorization': f'Bearer {cfg.api_token}'}
-        resp = requests.get('https://api.clickup.com/api/v2/user', headers=headers, timeout=10)
+        resp = requests.get('https://api.clickup.com/api/v2/user', headers=headers, timeout=10, verify=False)
         if resp.status_code == 200:
             user = resp.json().get('user', {})
             return {'ok': True, 'message': f'ClickUp connected as {user.get("email", "unknown user")}.'}
