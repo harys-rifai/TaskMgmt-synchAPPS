@@ -6,7 +6,7 @@
                 <strong class="small">{{ s }}</strong>
                 <span class="badge bg-secondary">{{ tasks_in_col|length }}</span>
             </div>
-            <div class="card-body p-2 board-column" style="min-height:200px; background:#f8f9fa;" data-status="{{ s }}">
+            <div class="card-body p-2 board-column" style="min-height:200px; background:{% if s == 'Open' %}#fff8e1{% elif s == 'Assigned' %}#e3f2fd{% elif s == 'In Progress' %}#e8f5e9{% elif s == 'Pending User' %}#fce4ec{% elif s == 'Pending Vendor' %}#f3e5f5{% elif s == 'Completed' %}#e0f7fa{% elif s == 'Closed' %}#eceff1{% elif s == 'Rejected' %}#ffebee{% elif s == 'Cancelled' %}#fafafa{% else %}#f5f5f5{% endif %};" data-status="{{ s }}">
                 {% if tasks_in_col %}
                 <div class="list-group list-group-flush">
                     {% for task in tasks_in_col %}

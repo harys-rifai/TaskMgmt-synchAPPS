@@ -502,15 +502,22 @@ document.getElementById('sync-submit-btn').addEventListener('click', function() 
         draggedEl = task;
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', task.dataset.taskId);
+        task.setAttribute('data-original-bg', task.style.background);
         task.style.opacity = '0.4';
     });
 
     container.addEventListener('dragend', function(e) {
         const task = e.target.closest('.draggable-task');
-        if (task) task.style.opacity = '1';
+        if (task) {
+            task.style.opacity = '1';
+            const originalBg = task.getAttribute('data-original-bg');
+            if (originalBg) task.style.background = originalBg;
+        }
         draggedEl = null;
         container.querySelectorAll('.board-column').forEach(function(col) {
-            col.classList.remove('bg-warning', 'bg-opacity-10');
+            col.classList.remove('drag-over');
+            const originalBg = col.getAttribute('data-original-bg');
+            if (originalBg) col.style.background = originalBg;
         });
     });
 
@@ -519,12 +526,21 @@ document.getElementById('sync-submit-btn').addEventListener('click', function() 
         const column = e.target.closest('.board-column');
         if (!column) return;
         e.dataTransfer.dropEffect = 'move';
-        column.style.background = '#e9ecef';
+        if (!column.hasAttribute('data-original-bg')) {
+            column.setAttribute('data-original-bg', column.style.background);
+        }
+        column.style.background = '#e3f2fd';
+        column.classList.add('drag-over');
     });
 
     container.addEventListener('dragleave', function(e) {
         const column = e.target.closest('.board-column');
-        if (column) column.style.background = '';
+        if (!column) return;
+        const originalBg = column.getAttribute('data-original-bg');
+        if (originalBg) {
+            column.style.background = originalBg;
+        }
+        column.classList.remove('drag-over');
     });
 
     container.addEventListener('drop', function(e) {
