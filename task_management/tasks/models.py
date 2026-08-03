@@ -231,6 +231,53 @@ class ClickUpConfig(models.Model):
         return f'ClickUp Config ({self.workspace_id or "not set"})'
 
 
+class WhatsAppConfig(models.Model):
+    api_token        = models.TextField(blank=True, help_text='WhatsApp Business API token')
+    phone_number_id  = models.CharField(max_length=255, blank=True, help_text='WhatsApp Phone Number ID')
+    business_account_id = models.CharField(max_length=255, blank=True, help_text='WhatsApp Business Account ID')
+    is_active        = models.BooleanField(default=True, help_text='Enable WhatsApp integration')
+    updated_at       = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tasks_whatsappconfig'
+        verbose_name = 'WhatsApp Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f'WhatsApp Config ({self.phone_number_id or "not set"})'
+
+
+class TelegramConfig(models.Model):
+    bot_token = models.TextField(blank=True, help_text='Telegram Bot Token from @BotFather')
+    chat_id   = models.CharField(max_length=255, blank=True, help_text='Telegram Chat/Group ID')
+    is_active = models.BooleanField(default=True, help_text='Enable Telegram integration')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tasks_telegramconfig'
+        verbose_name = 'Telegram Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f'Telegram Config ({self.chat_id or "not set"})'
+
+
 class DatabaseConfig(models.Model):
     ENGINE_CHOICES = [
         ('postgresql', 'PostgreSQL'),
@@ -315,3 +362,27 @@ class EmailConfig(models.Model):
 
     def __str__(self):
         return f'Email Config ({self.get_provider_display()} / {"active" if self.is_active else "inactive"})'
+
+
+class ActionNetworkConfig(models.Model):
+    api_key = models.TextField(blank=True, help_text='Action Network API Key')
+    webhook_url = models.CharField(max_length=255, blank=True, help_text='Action Network webhook callback URL')
+    webhook_secret = models.CharField(max_length=255, blank=True, help_text='Webhook verification secret')
+    is_active = models.BooleanField(default=True, help_text='Enable Action Network integration')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tasks_actionnetworkconfig'
+        verbose_name = 'Action Network Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f'Action Network Config ({self.webhook_url or "not set"})'

@@ -76,7 +76,19 @@ urlpatterns = [
     path('admin-page/database/save/', v.database_config_save, name='database-config-save'),
     path('admin-page/database/test/', v.database_config_test, name='database-config-test'),
 
+    # WhatsApp configuration
+    path('admin-page/whatsapp/save/', v.whatsapp_config_save, name='whatsapp-config-save'),
+    path('admin-page/whatsapp/test/', v.whatsapp_config_test, name='whatsapp-config-test'),
+
+    # Telegram configuration
+    path('admin-page/telegram/save/', v.telegram_config_save, name='telegram-config-save'),
+    path('admin-page/telegram/test/', v.telegram_config_test, name='telegram-config-test'),
+
     # Assignment rules
     path('admin-page/rules/add/', v.assignment_rule_add, name='assignment-rule-add'),
     path('admin-page/rules/delete/<str:keyword>/', v.assignment_rule_delete, name='assignment-rule-delete'),
+
+    # Webhooks
+    path('webhooks/n8n/', v.n8n_webhook, name='n8n-webhook'),
+    path('webhooks/action-network/', v.action_network_webhook, name='action-network-webhook'),
 ]

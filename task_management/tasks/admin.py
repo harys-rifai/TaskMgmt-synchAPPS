@@ -3,8 +3,21 @@ from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.contrib import messages
 from django.utils.html import format_html
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule
-from .forms import DatabaseConfigForm
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig
+from .forms import DatabaseConfigForm, PasswordShowHideWidget
+
+
+SENSITIVE_FIELDS = [
+    'password', 'api_key', 'api_token', 'bot_token', 'webhook_secret'
+]
+
+
+def _mask_sensitive_fields(form):
+    for field_name in SENSITIVE_FIELDS:
+        if field_name in form.base_fields:
+            widget = PasswordShowHideWidget()
+            form.base_fields[field_name].widget = widget
+    return form
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
@@ -26,6 +39,10 @@ class EmailConfigAdmin(admin.ModelAdmin):
     list_display = ('provider', 'host', 'is_active', 'test_connection')
     list_filter = ('is_active', 'provider')
     search_fields = ('host', 'username')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
 
     def test_connection(self, obj):
         return format_html(
@@ -74,6 +91,10 @@ class N8nConfigAdmin(admin.ModelAdmin):
     list_display = ('base_url', 'is_active', 'test_connection')
     list_filter = ('is_active',)
     search_fields = ('base_url',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
 
     def test_connection(self, obj):
         return format_html(
@@ -168,6 +189,10 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('workspace_id',)
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
+
     def test_connection(self, obj):
         return format_html(
             '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
@@ -235,3 +260,96 @@ class DatabaseConfigAdmin(admin.ModelAdmin):
         level = messages.SUCCESS if result['ok'] else messages.ERROR
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_databaseconfig_change', args=[pk]))
+
+
+@admin.register(WhatsAppConfig)
+class WhatsAppConfigAdmin(admin.ModelAdmin):
+    list_display = ('phone_number_id', 'is_active', 'test_connection')
+    list_filter = ('is_active',)
+    search_fields = ('phone_number_id',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
+
+    def test_connection(self, obj):
+        return format_html(
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            reverse('admin:tasks_whatsappconfig_test', args=[obj.pk])
+        )
+    test_connection.short_description = 'Test Connection'
+    test_connection.allow_tags = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:pk>/test/',
+                self.admin_site.admin_view(self.test_view),
+                name='tasks_whatsappconfig_test',
+            ),
+        ]
+        return custom_urls + urls
+
+    def test_view(self, request, pk):
+        from .views import _test_whatsapp_config
+        obj = self.get_object(request, pk)
+        result = _test_whatsapp_config(obj)
+        level = messages.SUCCESS if result['ok'] else messages.ERROR
+        self.message_user(request, result['message'], level=level)
+        return HttpResponseRedirect(reverse('admin:tasks_whatsappconfig_change', args=[pk]))
+
+
+@admin.register(TelegramConfig)
+class TelegramConfigAdmin(admin.ModelAdmin):
+    list_display = ('chat_id', 'is_active', 'test_connection')
+    list_filter = ('is_active',)
+    search_fields = ('chat_id',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
+
+    def test_connection(self, obj):
+        return format_html(
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            reverse('admin:tasks_telegramconfig_test', args=[obj.pk])
+        )
+    test_connection.short_description = 'Test Connection'
+    test_connection.allow_tags = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:pk>/test/',
+                self.admin_site.admin_view(self.test_view),
+                name='tasks_telegramconfig_test',
+            ),
+        ]
+        return custom_urls + urls
+
+    def test_view(self, request, pk):
+        from .views import _test_telegram_config
+        obj = self.get_object(request, pk)
+        result = _test_telegram_config(obj)
+        level = messages.SUCCESS if result['ok'] else messages.ERROR
+        self.message_user(request, result['message'], level=level)
+        return HttpResponseRedirect(reverse('admin:tasks_telegramconfig_change', args=[pk]))
+
+
+@admin.register(ActionNetworkConfig)
+class ActionNetworkConfigAdmin(admin.ModelAdmin):
+    list_display = ('webhook_url', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('webhook_url',)
+    readonly_fields = ('updated_at',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return _mask_sensitive_fields(form)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['webhook_url'] = request.build_absolute_uri('/webhooks/action-network/')
+        return super().change_view(request, object_id, form_url, extra_context)

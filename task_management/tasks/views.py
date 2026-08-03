@@ -21,7 +21,7 @@ from redis import Redis
 from urllib3.exceptions import InsecureRequestWarning
 import urllib3
 urllib3.disable_warnings(InsecureRequestWarning)
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, PROVIDER_PRESETS
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig, PROVIDER_PRESETS
 from .serializers import (
     TeamSerializer, TaskSerializer,
     TaskCreateSerializer, TaskUpdateSerializer,
@@ -731,6 +731,8 @@ def admin_page(request):
     email_cfg = EmailConfig.get()
     n8n_cfg = N8nConfig.get()
     clickup_cfg = ClickUpConfig.get()
+    whatsapp_cfg = WhatsAppConfig.get()
+    telegram_cfg = TelegramConfig.get()
     database_cfg = DatabaseConfig.get()
     redis_cfg = RedisConfig.get()
     assignment_rules = AssignmentRule.objects.select_related('team').all()
@@ -743,10 +745,13 @@ def admin_page(request):
         'email_cfg':        email_cfg,
         'n8n_cfg':          n8n_cfg,
         'clickup_cfg':      clickup_cfg,
+        'whatsapp_cfg':     whatsapp_cfg,
+        'telegram_cfg':     telegram_cfg,
         'database_cfg':     database_cfg,
         'redis_cfg':        redis_cfg,
         'assignment_rules': assignment_rules,
         'presets':          json.dumps(PROVIDER_PRESETS),
+        'admin_app_list':   admin_app_list,
     })
 
 
@@ -1026,6 +1031,108 @@ def database_config_test(request, cfg=None):
     return redirect('admin-page')
 
 
+def _test_whatsapp_config(cfg):
+    if not cfg.is_active or not cfg.api_token:
+        return {'ok': False, 'message': 'WhatsApp is not configured or not active. Save an API token first.'}
+    return {'ok': True, 'message': f'WhatsApp config saved ({cfg.phone_number_id or "no phone number"}).'}
+
+
+def _test_telegram_config(cfg):
+    if not cfg.is_active or not cfg.bot_token:
+        return {'ok': False, 'message': 'Telegram is not configured or not active. Save a bot token first.'}
+    try:
+        resp = requests.get(f'https://api.telegram.org/bot{cfg.bot_token}/getMe', timeout=10, verify=False)
+        if resp.status_code == 200:
+            bot = resp.json().get('result', {})
+            return {'ok': True, 'message': f'Telegram connected as @{bot.get("username", "unknown")}.'}
+        return {'ok': False, 'message': f'Telegram responded with status {resp.status_code}.'}
+    except Exception as e:
+        return {'ok': False, 'message': f'Connection failed: {e}'}
+
+
+@login_required
+@require_http_methods(['POST'])
+def whatsapp_config_save(request):
+    cfg = WhatsAppConfig.get()
+    cfg.api_token         = request.POST.get('api_token', '').strip()
+    cfg.phone_number_id   = request.POST.get('phone_number_id', '').strip()
+    cfg.business_account_id = request.POST.get('business_account_id', '').strip()
+    cfg.is_active         = request.POST.get('is_active') == '1'
+    try:
+        cfg.full_clean()
+        cfg.save()
+        msg = {'ok': True, 'message': 'WhatsApp configuration saved.'}
+    except Exception as e:
+        msg = {'ok': False, 'message': str(e)}
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if msg['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if msg['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{msg["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+@login_required
+@require_http_methods(['POST'])
+def whatsapp_config_test(request, cfg=None):
+    if cfg is None:
+        cfg = WhatsAppConfig.get()
+    result = _test_whatsapp_config(cfg)
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if result['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if result['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{result["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+@login_required
+@require_http_methods(['POST'])
+def telegram_config_save(request):
+    cfg = TelegramConfig.get()
+    cfg.bot_token = request.POST.get('bot_token', '').strip()
+    cfg.chat_id   = request.POST.get('chat_id', '').strip()
+    cfg.is_active = request.POST.get('is_active') == '1'
+    try:
+        cfg.full_clean()
+        cfg.save()
+        msg = {'ok': True, 'message': 'Telegram configuration saved.'}
+    except Exception as e:
+        msg = {'ok': False, 'message': str(e)}
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if msg['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if msg['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{msg["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+@login_required
+@require_http_methods(['POST'])
+def telegram_config_test(request, cfg=None):
+    if cfg is None:
+        cfg = TelegramConfig.get()
+    result = _test_telegram_config(cfg)
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if result['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if result['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{result["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
 # ---------------------------------------------------------------------------
 # Assignment rule views
 # ---------------------------------------------------------------------------
@@ -1088,6 +1195,211 @@ def assignment_rule_delete(request, keyword):
         )
         return HttpResponse(html)
     return redirect('admin-page')
+
+
+# ---------------------------------------------------------------------------
+# Webhook / External integration views
+# ---------------------------------------------------------------------------
+
+@require_http_methods(['POST'])
+def n8n_webhook(request):
+    """Receive data from n8n workflows and sync to task database."""
+    try:
+        data = json.loads(request.body)
+        source = data.get('source', 'n8n')
+        items = data.get('items', [])
+        
+        if not isinstance(items, list) or not items:
+            return JsonResponse({'status': 'error', 'message': 'items must be a non-empty array'}, status=400)
+        
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = []
+
+        for item in items:
+            external_id = item.get('external_id')
+            title = item.get('title')
+            if not external_id or not title:
+                skipped += 1
+                errors.append({'external_id': external_id or 'missing', 'error': 'external_id and title are required'})
+                continue
+
+            description = item.get('description', '')
+            status = item.get('status', 'Open')
+            priority = item.get('priority', 'Medium')
+            assignee_name = item.get('assignee', '').strip()
+            url = item.get('url', '')
+            raw = item.get('raw', {})
+            task_type = item.get('task_type', source.title())
+
+            job_id = item.get('job_id') or f'{source}-{external_id}'
+
+            if status == 'Closed' and not item.get('updated_at'):
+                closed_at = timezone.now()
+            else:
+                closed_at = None
+
+            assign_to = None
+            if assignee_name:
+                assign_to = Team.objects.filter(name__iexact=assignee_name).first()
+
+            try:
+                task, task_created = Task.objects.update_or_create(
+                    external_id=external_id,
+                    defaults={
+                        'job_id': job_id,
+                        'email_from': item.get('email_from', ''),
+                        'email_subject': title,
+                        'task_type': task_type,
+                        'task_detail': description,
+                        'priority': priority,
+                        'status': status,
+                        'assign_to': assign_to,
+                        'source': source,
+                        'closed_at': closed_at,
+                    },
+                )
+                if task_created:
+                    created += 1
+                else:
+                    updated += 1
+
+                TaskSync.objects.update_or_create(
+                    source=source,
+                    external_id=external_id,
+                    defaults={
+                        'task': task,
+                        'raw': raw,
+                    },
+                )
+            except Exception as e:
+                skipped += 1
+                errors.append({'external_id': external_id, 'error': str(e)})
+
+        _invalidate_task_caches()
+        return JsonResponse({
+            'status': 'ok',
+            'source': source,
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'errors': errors,
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@require_http_methods(['POST'])
+def action_network_webhook(request):
+    """Receive webhook from Action Network and sync to task database."""
+    try:
+        # Verify webhook secret if configured
+        cfg = ActionNetworkConfig.get()
+        if cfg.webhook_secret:
+            signature = request.headers.get('X-Action-Network-Signature', '')
+            if not signature:
+                return JsonResponse({'status': 'error', 'message': 'Missing signature'}, status=401)
+        
+        data = json.loads(request.body)
+        
+        # Action Network payload structure
+        # Typically: { "actions": [...], "people": [...], "events": [...] }
+        # We'll normalize to our task format
+        items = []
+        
+        if 'actions' in data:
+            for action in data['actions']:
+                items.append({
+                    'external_id': str(action.get('id', '')),
+                    'title': action.get('title', 'Untitled Action'),
+                    'description': action.get('description', '') or action.get('notes', ''),
+                    'status': 'Open',
+                    'priority': 'Medium',
+                    'source': 'action_network',
+                    'raw': action,
+                })
+        
+        if 'events' in data:
+            for event in data['events']:
+                items.append({
+                    'external_id': str(event.get('id', '')),
+                    'title': event.get('title', 'Untitled Event'),
+                    'description': event.get('description', '') or event.get('notes', ''),
+                    'status': event.get('status', 'Open'),
+                    'priority': 'Medium',
+                    'source': 'action_network',
+                    'raw': event,
+                })
+        
+        if not items:
+            return JsonResponse({'status': 'ok', 'message': 'No items to sync', 'created': 0, 'updated': 0})
+
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = []
+
+        for item in items:
+            external_id = item['external_id']
+            title = item['title']
+            if not external_id or not title:
+                skipped += 1
+                continue
+
+            description = item.get('description', '')
+            status = item.get('status', 'Open')
+            priority = item.get('priority', 'Medium')
+            raw = item.get('raw', {})
+            task_type = item.get('task_type', 'Action Network')
+
+            job_id = item.get('job_id') or f'AN-{external_id}'
+
+            try:
+                task, task_created = Task.objects.update_or_create(
+                    external_id=external_id,
+                    defaults={
+                        'job_id': job_id,
+                        'email_from': '',
+                        'email_subject': title,
+                        'task_type': task_type,
+                        'task_detail': description,
+                        'priority': priority,
+                        'status': status,
+                        'source': 'action_network',
+                    },
+                )
+                if task_created:
+                    created += 1
+                else:
+                    updated += 1
+
+                TaskSync.objects.update_or_create(
+                    source='action_network',
+                    external_id=external_id,
+                    defaults={
+                        'task': task,
+                        'raw': raw,
+                    },
+                )
+            except Exception as e:
+                skipped += 1
+                errors.append({'external_id': external_id, 'error': str(e)})
+
+        _invalidate_task_caches()
+        return JsonResponse({
+            'status': 'ok',
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'errors': errors,
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
 # ---------------------------------------------------------------------------

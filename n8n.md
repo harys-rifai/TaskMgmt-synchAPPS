@@ -1203,9 +1203,15 @@ Django API  : http://localhost:8000/task-api/
 Django UI   : http://localhost:8000/dashboard/
 Django Admin: http://localhost:8000/admin/
 
+Webhooks:
+  - n8n webhook:        http://localhost:8000/webhooks/n8n/
+  - Action Network:     http://localhost:8000/webhooks/action-network/
+
 Email       : Outlook Shared Mailbox
 Teams       : Microsoft Teams (via Graph API)
 Telegram    : Telegram Bot API
+WhatsApp    : WhatsApp Business API
+Action Netw : Action Network API
 Router      : n8n Code + Switch nodes
 AI          : OpenAI / Azure OpenAI / Ollama
 ```
@@ -1277,3 +1283,495 @@ Sessions are stored in Redis for performance:
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
 ```
+
+---
+
+# Action Network API Integration
+
+## Overview
+
+Action Network is an organizing platform. This integration allows n8n to receive events from Action Network and route them through the task management system.
+
+## Action Network Credentials Setup
+
+### API Key
+
+1. Log in to your Action Network account
+2. Go to **Settings > API** (or **Integrations > API**)
+3. Under **API Access**, generate a new **API Key**
+4. Copy the key (it will be a long alphanumeric string)
+5. In n8n, create a new credential:
+   - **Credential Type**: HTTP Header Auth
+   - **Name**: `Action Network API`
+   - **Header Name**: `OSDI-API-Token`
+   - **Header Value**: paste your API key
+
+### Allowed HTTP Request Domains
+
+1. In Action Network, go to **Settings > API > Allowed Domains**
+2. Add your n8n instance URL:
+   - Development: `http://localhost:5678`
+   - Production: `https://n8n.yourdomain.com`
+3. Save the settings
+
+This whitelist allows Action Network to send webhooks to your n8n instance.
+
+---
+
+## n8n Workflow: Action Network → Django
+
+### Workflow Structure
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                    n8n Workflow                             │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  [Trigger] Action Network Webhook                           │
+│       │                                                      │
+│       ▼                                                      │
+│  [Code Node] Parse & normalize Action Network payload       │
+│       │                                                      │
+│       ▼                                                      │
+│  [Switch] Route by action type / event                      │
+│       ├──► New Action Created                               │
+│       ├──► Event Created                                    │
+│       ├──► Person Updated                                   │
+│       └──► Donation Received                                │
+│       │                                                      │
+│       ▼                                                      │
+│  [HTTP Request] POST to Django API                          │
+│       │                                                      │
+│       ▼                                                      │
+│  [Redis] Cache notification (prevent duplicates)            │
+│       │                                                      │
+│       ▼                                                      │
+│  [PostgreSQL] Save to taskdb                                │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Node 1: Action Network Trigger
+
+**Credential**: `Action Network API` (HTTP Header Auth with `OSDI-API-Token`)
+
+**Configuration**:
+- **Resource**: Webhook
+- **Event**: `action.created`, `event.created`, `person.created`
+- **Method**: POST
+
+### Node 2: Code Node (Parse Payload)
+
+```javascript
+// Normalize Action Network payload to task format
+const item = $input.first().json;
+const data = item.json || item;
+
+// Action Network uses OSDI (Open Source Data Initiative) format
+const entityType = data.type || 'action';
+const attributes = data.attributes || data;
+
+const title = attributes.name || attributes.title || 'Untitled Action';
+const description = attributes.description || attributes.notes || attributes.bio || '';
+const status = attributes.status || 'Open';
+const actionType = attributes.action_type || attributes.type || entityType;
+
+return [{
+  json: {
+    external_id: String(data.id || ''),
+    title: title,
+    description: description,
+    status: status,
+    priority: 'Medium',
+    source: 'action_network',
+    task_type: actionType,
+    url: data.links?.self || data.url || '',
+    raw: data
+  }
+}];
+```
+
+### Node 3: HTTP Request → Django API
+
+**Method**: POST
+**URL**: `http://localhost:8000/webhooks/action-network/`
+
+**Headers**:
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Body**:
+```json
+{
+  "actions": [
+    {
+      "id": "{{ $json.external_id }}",
+      "title": "{{ $json.title }}",
+      "description": "{{ $json.description }}",
+      "status": "{{ $json.status }}",
+      "type": "{{ $json.task_type }}"
+    }
+  ]
+}
+```
+
+### Node 4: Notification Nodes (Optional)
+
+After saving to Django, send notifications:
+
+**Email (SMTP)**:
+```json
+{
+  "method": "POST",
+  "url": "http://localhost:8000/task-api/tasks/notify/email/",
+  "body": {
+    "to": "{{ $json.assignee_email }}",
+    "subject": "New Action: {{ $json.title }}",
+    "body": "A new action has been created in Action Network.\n\nTitle: {{ $json.title }}\nStatus: {{ $json.status }}"
+  }
+}
+```
+
+**Teams**:
+```json
+{
+  "method": "POST",
+  "url": "https://graph.microsoft.com/v1.0/teams/{{ team_id }}/channels/{{ channel_id }}/messages",
+  "headers": {
+    "Authorization": "Bearer {{ $credentials.teamsOAuth }}"
+  },
+  "body": {
+    "body": {
+      "content": "<h3>New Action</h3><p>{{ $json.title }}</p><p>Status: {{ $json.status }}</p>",
+      "contentType": "html"
+    }
+  }
+}
+```
+
+**Telegram**:
+```json
+{
+  "method": "POST",
+  "url": "https://api.telegram.org/bot{{ $credentials.telegramBotToken }}/sendMessage",
+  "body": {
+    "chat_id": "{{ $json.chat_id }}",
+    "text": "New Action: {{ $json.title }}\nStatus: {{ $json.status }}"
+  }
+}
+```
+
+---
+
+## Django Configuration
+
+### Action Network Config Model
+
+The Django app has an `ActionNetworkConfig` model stored in `tasks_actionnetworkconfig` table:
+
+| Field | Description |
+|-------|-------------|
+| `api_key` | Action Network API Key |
+| `webhook_url` | Action Network webhook callback URL |
+| `webhook_secret` | Webhook verification secret |
+| `is_active` | Enable/disable integration |
+| `updated_at` | Last updated timestamp |
+
+### Admin Configuration
+
+1. Go to `http://localhost:8000/admin-page/`
+2. Find the **Action Network** card (or go to Django Admin > Tasks > Action Network Configurations)
+3. Configure:
+   - **API Key**: Your Action Network API key
+   - **Webhook URL**: `http://localhost:8000/webhooks/action-network/`
+   - **Webhook Secret**: Optional secret for webhook verification
+   - **Enable**: Check to activate
+
+### Webhook Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhooks/n8n/` | POST | Receive data from n8n workflows |
+| `/webhooks/action-network/` | POST | Receive webhooks from Action Network |
+
+### Webhook Payload Format
+
+**n8n webhook** (`POST /webhooks/n8n/`):
+```json
+{
+  "source": "n8n",
+  "items": [
+    {
+      "external_id": "ext-123",
+      "title": "Task Title",
+      "description": "Task description",
+      "status": "Open",
+      "priority": "Medium",
+      "assignee": "Team Name",
+      "url": "https://example.com",
+      "raw": {}
+    }
+  ]
+}
+```
+
+**Action Network webhook** (`POST /webhooks/action-network/`):
+```json
+{
+  "actions": [
+    {
+      "id": "123",
+      "title": "Action Title",
+      "description": "Action description",
+      "status": "active",
+      "type": "petition"
+    }
+  ],
+  "events": [
+    {
+      "id": "456",
+      "title": "Event Title",
+      "description": "Event description",
+      "status": "confirmed"
+    }
+  ]
+}
+```
+
+### Response Format
+
+Both webhooks return:
+```json
+{
+  "status": "ok",
+  "created": 1,
+  "updated": 0,
+  "skipped": 0,
+  "errors": []
+}
+```
+
+---
+
+## Complete System Flow
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                        Action Network                           │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ Webhook Trigger                                         │  │
+│  │ - action.created                                        │  │
+│  │ - event.created                                         │  │
+│  │ - person.created                                        │  │
+│  └────────────────────────┬─────────────────────────────────┘  │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │ POST
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                           n8n                                   │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ 1. Action Network Trigger                               │  │
+│  │ 2. Code Node (Parse & Normalize)                        │  │
+│  │ 3. Switch (Route by event type)                         │  │
+│  │ 4. Send Notifications                                   │  │
+│  │    - Email (SMTP/Outlook)                               │  │
+│  │    - WhatsApp                                           │  │
+│  │    - Teams (Graph API)                                  │  │
+│  │    - Telegram                                           │  │
+│  │ 5. HTTP Request → Django                                │  │
+│  │ 6. Redis Cache (dedup)                                  │  │
+│  │ 7. PostgreSQL (save task)                               │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ POST /webhooks/action-network/
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         Django API                              │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ POST /webhooks/action-network/                          │  │
+│  │ - Validate payload                                      │  │
+│  │ - Normalize to task format                              │  │
+│  │ - Save to PostgreSQL (tasks_task)                       │  │
+│  │ - Save sync record (tasks_tasksync)                     │  │
+│  │ - Invalidate Redis cache                                │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ PostgreSQL (taskdb)                                     │  │
+│  │ - tasks_task                                            │  │
+│  │ - tasks_tasksync                                        │  │
+│  │ - tasks_actionnetworkconfig                             │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ Redis Cache                                             │  │
+│  │ - dashboard_stats (2 min)                               │  │
+│  │ - notification dedup (2 min)                            │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Django Dashboard                           │
+│  http://localhost:8000/dashboard/                               │
+│  - View all tasks from Action Network                           │
+│  - Status, priority, assignment                                │
+│  - Reports and analytics                                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Testing the Integration
+
+### 1. Test n8n Webhook
+
+```bash
+curl -X POST http://localhost:8000/webhooks/n8n/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "test",
+    "items": [
+      {
+        "external_id": "test-1",
+        "title": "Test Task from n8n",
+        "description": "Testing webhook",
+        "status": "Open",
+        "priority": "Medium"
+      }
+    ]
+  }'
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "created": 1,
+  "updated": 0,
+  "skipped": 0,
+  "errors": []
+}
+```
+
+### 2. Test Action Network Webhook
+
+```bash
+curl -X POST http://localhost:8000/webhooks/action-network/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actions": [
+      {
+        "id": "AN-123",
+        "title": "Climate Action Petition",
+        "description": "Sign the climate petition",
+        "status": "active",
+        "type": "petition"
+      }
+    ]
+  }'
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "created": 1,
+  "updated": 0,
+  "skipped": 0,
+  "errors": []
+}
+```
+
+### 3. Verify in Django
+
+1. Go to `http://localhost:8000/dashboard/`
+2. Check that the new task appears
+3. Go to `http://localhost:8000/tasks/`
+4. Verify task details
+
+---
+
+## n8n Workflow JSON Export
+
+Save this as `action-network-to-django-workflow.json` and import into n8n:
+
+```json
+{
+  "name": "Action Network to Django",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "webhook/action-network",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedMethods": "POST"
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst data = item.json || item;\n\nconst title = data.title || data.name || 'Untitled Action';\ndescription = data.description || data.notes || data.bio || '';\nstatus = data.status || 'Open';\nactionType = data.type || data.action_type || 'action';\n\nreturn [{\n  json: {\n    external_id: String(data.id || ''),\n    title: title,\n    description: description,\n    status: status,\n    priority: 'Medium',\n    source: 'action_network',\n    task_type: actionType,\n    url: data.links?.self || data.url || '',\n    raw: data\n  }\n}];"
+      },
+      "id": "parse-code",
+      "name": "Parse Action Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/webhooks/action-network/",
+        "authentication": "none",
+        "body": {
+          "contentType": "json",
+          "content": "{\n  \"actions\": [\n    {\n      \"id\": \"{{ $json.external_id }}\",\n      \"title\": \"{{ $json.title }}\",\n      \"description\": \"{{ $json.description }}\",\n      \"status\": \"{{ $json.status }}\",\n      \"type\": \"{{ $json.task_type }}\"\n    }\n  ]\n}"
+        }
+      },
+      "id": "http-django",
+      "name": "Send to Django",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parse Action Data", "type": "main", "index": 0}]]
+    },
+    "Parse Action Data": {
+      "main": [[{"node": "Send to Django", "type": "main", "index": 0}]]
+    }
+  }
+}
+```
+
+---
+
+## Security Notes
+
+1. **Webhook Verification**: Use the `webhook_secret` field to verify incoming webhooks
+2. **HTTPS**: Use HTTPS in production for all webhook endpoints
+3. **Rate Limiting**: Consider adding rate limiting to webhook endpoints
+4. **IP Whitelisting**: Restrict webhook access to n8n IPs if possible
+5. **API Keys**: Store Action Network API key in n8n credentials, not in workflow code
+
+---
+
+## Summary
+
+| Component | URL / Config |
+|-----------|-------------|
+| Action Network API | https://actionnetwork.org/api/v2/ |
+| n8n Webhook Endpoint | http://localhost:8000/webhooks/action-network/ |
+| Django API | http://localhost:8000/task-api/ |
+| Django Admin | http://localhost:8000/admin-page/ |
+| Database | PostgreSQL on port 5008 |
+| Cache | Redis on port 6379 |
