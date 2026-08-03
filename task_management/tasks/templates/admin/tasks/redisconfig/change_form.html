@@ -5,7 +5,7 @@
     {{ block.super }}
     {% if object.pk %}
     <li>
-        <form method="post" action="{% url 'admin:tasks_clickupconfig_test' object.pk %}" style="display:inline;">
+        <form method="post" action="{% url 'admin:tasks_redisconfig_test' object.pk %}" style="display:inline;">
             {% csrf_token %}
             <button type="submit" class="btn btn-secondary" style="margin-top: 5px;">
                 Test Connection

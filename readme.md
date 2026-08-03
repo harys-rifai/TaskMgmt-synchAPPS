@@ -854,33 +854,19 @@ Overdue         : <count>
 ---
 
 # Best Practice Production
-
 ✅ PostgreSQL sebagai database utama
-
 ✅ Redis sebagai cache dan message queue
-
 ✅ Gunakan Node.js LTS
-
 ✅ Jalankan n8n melalui PM2
-
 ✅ Backup PostgreSQL harian
-
 ✅ Aktifkan HTTPS menggunakan IIS Reverse Proxy atau Nginx
-
 ✅ Gunakan Azure OpenAI untuk enterprise
-
 ✅ Gunakan Ollama untuk data internal sensitif
-
 ✅ Aktifkan User Management dan MFA
-
 ✅ Batasi akses PostgreSQL hanya dari localhost
-
 ✅ Batasi akses Redis dengan password
-
 ✅ Monitoring menggunakan Grafana dan Prometheus
-
 ---
-
 # Ringkasan Konfigurasi
 
 ```text

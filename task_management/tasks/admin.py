@@ -28,7 +28,7 @@ class EmailConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<a class="button" href="{}" target="_blank">Test</a>',
+            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_emailconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -76,7 +76,7 @@ class N8nConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<a class="button" href="{}" target="_blank">Test</a>',
+            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_n8nconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -101,6 +101,11 @@ class N8nConfigAdmin(admin.ModelAdmin):
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_n8nconfig_change', args=[pk]))
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_test_button'] = True
+        return super().change_view(request, object_id, form_url, extra_context)
+
 
 @admin.register(TaskSync)
 class TaskSyncAdmin(admin.ModelAdmin):
@@ -118,7 +123,7 @@ class RedisConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<a class="button" href="{}" target="_blank">Test</a>',
+            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_redisconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
@@ -143,6 +148,11 @@ class RedisConfigAdmin(admin.ModelAdmin):
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_redisconfig_change', args=[pk]))
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_test_button'] = True
+        return super().change_view(request, object_id, form_url, extra_context)
+
 
 @admin.register(AssignmentRule)
 class AssignmentRuleAdmin(admin.ModelAdmin):
@@ -159,7 +169,7 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<a class="button" href="{}" target="_blank">Test</a>',
+            '<form method="post" action="{}" style="display:inline;">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
             reverse('admin:tasks_clickupconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
