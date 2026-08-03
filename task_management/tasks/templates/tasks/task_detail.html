@@ -95,6 +95,41 @@
                 </div>
             </div>
         </div>
+
+        {% if task.attachments.all %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-paperclip me-2 text-secondary"></i>Attachments
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for att in task.attachments.all %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center" id="attachment-{{ att.id }}">
+                        <div class="d-flex align-items-center gap-3">
+                            {% if att.content_type|slice:"0:5" == "image" %}
+                            <img src="{{ att.file.url }}" alt="" style="height:48px; width:auto; object-fit:cover; border-radius:6px;">
+                            {% else %}
+                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
+                                <i class="fa fa-file-lines text-secondary fa-lg"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <a href="{{ att.file.url }}" target="_blank" class="fw-semibold text-decoration-none">{{ att.filename }}</a>
+                                <div class="small text-muted">{{ att.uploaded_at|date:"d M Y, H:i" }}</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger py-0"
+                                hx-post="/tasks/{{ task.id }}/attachments/{{ att.id }}/delete/"
+                                hx-confirm="Delete attachment?"
+                                hx-target="#attachment-{{ att.id }}"
+                                hx-swap="outerHTML swap:0.3s"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Right: actions -->

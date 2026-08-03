@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib3.exceptions import InsecureRequestWarning
 import urllib3
 urllib3.disable_warnings(InsecureRequestWarning)
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig, PROVIDER_PRESETS
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig, TaskAttachment, PROVIDER_PRESETS
 from .serializers import (
     TeamSerializer, TaskSerializer,
     TaskCreateSerializer, TaskUpdateSerializer,
@@ -601,6 +601,17 @@ def task_edit_page(request, pk):
                 task.closed_at = timezone.now()
             task.save()
             _invalidate_task_caches()
+
+            uploaded_files = request.FILES.getlist('attachments')
+            for uploaded in uploaded_files:
+                TaskAttachment.objects.create(
+                    task=task,
+                    file=uploaded,
+                    filename=uploaded.name,
+                    content_type=getattr(uploaded, 'content_type', ''),
+                    uploaded_by=request.user,
+                )
+
             return redirect('task-detail', pk=task.pk)
 
     return render(request, 'tasks/task_edit.html', {
@@ -663,6 +674,17 @@ def task_delete(request, pk):
     task.delete()
     _invalidate_task_caches()
     # Return an empty 200 — HTMX will swap out the row
+    return HttpResponse(status=200)
+
+
+@require_http_methods(['POST'])
+@login_required
+def task_attachment_delete(request, pk, attachment_id):
+    task = get_object_or_404(Task, pk=pk)
+    attachment = get_object_or_404(TaskAttachment, pk=attachment_id, task=task)
+    attachment.file.delete()
+    attachment.delete()
+    _invalidate_task_caches()
     return HttpResponse(status=200)
 
 

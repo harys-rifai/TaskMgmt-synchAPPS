@@ -24,6 +24,7 @@
                                     {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
                                     {% else %}<span class="badge bg-success" style="font-size:.65rem;">Low</span>{% endif %}
                                     {% if task.assign_to %}<span class="badge bg-info text-dark" style="font-size:.65rem;">{{ task.assign_to.name }}</span>{% endif %}
+                                    {% if task.attachments.exists %}<span class="badge bg-secondary" style="font-size:.65rem;"><i class="fa fa-paperclip me-1"></i></span>{% endif %}
                                 </div>
                                 <div class="small text-muted mt-1">{{ task.updated_at|date:"d M H:i" }}</div>
                             </div>

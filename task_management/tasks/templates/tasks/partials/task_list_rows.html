@@ -8,6 +8,7 @@
             {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
             {% else %}<span class="badge bg-success" style="font-size:.65rem;">Low</span>{% endif %}
             <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ task.status }}</span>
+            {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted" style="font-size:.65rem;" title="Has attachments"></i>{% endif %}
             <small class="text-muted" style="font-size:.7rem;">{{ task.updated_at|date:"d M H:i" }}</small>
         </div>
         <div class="text-truncate small text-muted" style="max-width:500px; margin-top:.15rem;">

@@ -388,3 +388,19 @@ class ActionNetworkConfig(models.Model):
 
     def __str__(self):
         return f'Action Network Config ({self.webhook_url or "not set"})'
+
+
+class TaskAttachment(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='task_attachments/%Y/%m/%d/')
+    filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        db_table = 'tasks_taskattachment'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f'{self.task.job_id} — {self.filename}'

@@ -25,6 +25,7 @@
     <td>{{ task.assign_to.name|default:"—" }}</td>
     <td class="text-nowrap">{{ task.updated_at|date:"d M H:i" }}</td>
     <td class="text-nowrap">
+        {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted me-1" title="Has attachments"></i>{% endif %}
         <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0">Edit</a>
         <button class="btn btn-sm btn-outline-danger py-0"
                 hx-post="/tasks/{{ task.id }}/delete/"

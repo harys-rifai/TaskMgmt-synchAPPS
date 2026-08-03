@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
@@ -46,6 +48,7 @@ urlpatterns = [
     path('tasks/<int:pk>/assign/',        v.task_assign_form,   name='task-assign-form'),
     path('tasks/<int:pk>/do-assign/',     v.task_do_assign,     name='task-do-assign'),
     path('tasks/<int:pk>/board-move/',    v.task_board_move,    name='task-board-move'),
+    path('tasks/<int:pk>/attachments/<int:attachment_id>/delete/', v.task_attachment_delete, name='task-attachment-delete'),
 
     # HTMX dashboard partials
     path('partials/by-status/',   v.partial_by_status,   name='partial-by-status'),
@@ -94,3 +97,6 @@ urlpatterns = [
     path('webhooks/n8n/', v.n8n_webhook, name='n8n-webhook'),
     path('webhooks/action-network/', v.action_network_webhook, name='action-network-webhook'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

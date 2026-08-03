@@ -16,6 +16,7 @@
             <div class="d-flex flex-wrap gap-2 mb-2">
                 <span class="badge bg-light text-dark border">{{ task.status }}</span>
                 <span class="badge bg-info text-dark">{{ task.task_type }}</span>
+                {% if task.attachments.exists %}<span class="badge bg-secondary"><i class="fa fa-paperclip me-1"></i>Attachments</span>{% endif %}
             </div>
             {% if task.assign_to %}
             <div class="small text-muted">
