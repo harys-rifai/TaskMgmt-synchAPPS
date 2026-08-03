@@ -7,17 +7,12 @@
 {% block extrahead %}
     {{ block.super }}
     <link rel="stylesheet" type="text/css" href="{% static 'admin/css/base.css' %}">
-    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/dashboard.css' %}">
     {% block extrastyle %}{% endblock %}
     {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% static 'admin/css/rtl.css' %}">{% endif %}
     {% block responsive %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="{% static 'admin/css/responsive.css' %}">
     {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% static 'admin/css/responsive_rtl.css' %}">{% endif %}
-    {% endblock %}
-    {% block dark-mode-vars %}
-    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/dark_mode.css' %}">
-    <script src="{% static 'admin/js/theme.js' %}" defer></script>
     {% endblock %}
     <style>
         .main-content {
