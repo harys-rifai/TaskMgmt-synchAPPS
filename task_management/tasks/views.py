@@ -747,7 +747,6 @@ def admin_page(request):
         'redis_cfg':        redis_cfg,
         'assignment_rules': assignment_rules,
         'presets':          json.dumps(PROVIDER_PRESETS),
-        'admin_app_list':   admin_app_list,
     })
 
 

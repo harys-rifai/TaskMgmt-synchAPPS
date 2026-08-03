@@ -426,40 +426,5 @@
         </div>
     </div>
 
-    {% if admin_app_list %}
-    {% for app in admin_app_list %}
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white fw-semibold py-2">
-                <i class="fa fa-lock me-2 text-secondary"></i>{{ app.name }}
-            </div>
-            <div class="card-body">
-                <p class="text-muted small mb-3">
-                    Manage {{ app.name|lower }} records.
-                </p>
-                <ul class="list-unstyled small mb-0">
-                    {% for model in app.models %}
-                    <li class="mb-2">
-                        <div class="fw-semibold text-dark">{{ model.name }}</div>
-                        <div class="mt-1">
-                            {% if model.admin_url %}
-                            <a href="{{ model.admin_url }}" class="btn btn-xs btn-outline-primary me-1" target="_blank">
-                                <i class="fa fa-list me-1"></i>Change list
-                            </a>
-                            {% endif %}
-                            {% if model.add_url %}
-                            <a href="{{ model.add_url }}" class="btn btn-xs btn-outline-success" target="_blank">
-                                <i class="fa fa-plus me-1"></i>Add
-                            </a>
-                            {% endif %}
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-    {% endif %}
 </div>
 {% endblock %}
