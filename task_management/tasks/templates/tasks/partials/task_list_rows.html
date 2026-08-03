@@ -1,30 +1,30 @@
 {% for task in page_obj %}
-<div class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2"
-     id="task-row-{{ task.id }}">
+<div class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-1 px-2"
+     id="task-row-{{ task.id }}" style="font-size:.85rem;">
     <div class="flex-grow-1 min-w-0">
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none">{{ task.job_id }}</a>
-            {% if task.priority == 'High' %}<span class="badge bg-danger">High</span>
-            {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark">Medium</span>
-            {% else %}<span class="badge bg-success">Low</span>{% endif %}
-            <span class="badge bg-light text-dark border">{{ task.status }}</span>
-            <small class="text-muted">{{ task.updated_at|date:"d M H:i" }}</small>
+            <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none small">{{ task.job_id }}</a>
+            {% if task.priority == 'High' %}<span class="badge bg-danger" style="font-size:.65rem;">High</span>
+            {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
+            {% else %}<span class="badge bg-success" style="font-size:.65rem;">Low</span>{% endif %}
+            <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ task.status }}</span>
+            <small class="text-muted" style="font-size:.7rem;">{{ task.updated_at|date:"d M H:i" }}</small>
         </div>
-        <div class="text-truncate mt-1" style="max-width:600px;">
-            <strong>{{ task.email_subject }}</strong>
-            <span class="text-muted">— {{ task.email_from }}</span>
+        <div class="text-truncate small text-muted" style="max-width:500px; margin-top:.15rem;">
+            {{ task.email_subject }} <span class="text-muted">— {{ task.email_from }}</span>
         </div>
     </div>
     <div class="flex-shrink-0 d-flex gap-1">
-        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0">Edit</a>
-        <button class="btn btn-sm btn-outline-danger py-0"
+        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0" style="font-size:.7rem; padding:.15rem .4rem;">Edit</a>
+        <button class="btn btn-xs btn-outline-danger py-0"
                 hx-post="/tasks/{{ task.id }}/delete/"
                 hx-confirm="Delete task {{ task.job_id }}?"
                 hx-target="#task-row-{{ task.id }}"
                 hx-swap="outerHTML swap:0.3s"
-                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                style="font-size:.7rem; padding:.15rem .4rem;">Del</button>
     </div>
 </div>
 {% empty %}
-<div class="text-center text-muted py-4">No tasks found</div>
+<div class="text-center text-muted py-3 small">No tasks found</div>
 {% endfor %}
