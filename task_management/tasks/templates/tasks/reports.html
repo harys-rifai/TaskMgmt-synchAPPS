@@ -1,0 +1,165 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Reports — Task Management{% endblock %}
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-heading">
+        <i class="fa fa-chart-bar me-2 text-primary"></i>Reports
+    </h1>
+    <span class="text-muted small">
+        <i class="fa fa-clock me-1"></i>Auto-refreshes every 5 min
+    </span>
+</div>
+
+<!-- Summary cards row -->
+<div class="row g-3 mb-4">
+    <!-- Daily -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-calendar-day me-2 text-info"></i>Today
+            </div>
+            <div class="card-body">
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:#fff8e1;">
+                            <div class="fw-bold fs-4 text-warning">{{ report.open }}</div>
+                            <div class="small text-muted">Open</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:#e0f7fa;">
+                            <div class="fw-bold fs-4 text-info">{{ report.in_progress }}</div>
+                            <div class="small text-muted">In Progress</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:#e8f5e9;">
+                            <div class="fw-bold fs-4 text-success">{{ report.closed_today }}</div>
+                            <div class="small text-muted">Closed Today</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background:#fce4ec;">
+                            <div class="fw-bold fs-4 text-danger">{{ report.overdue }}</div>
+                            <div class="small text-muted">Overdue</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-calendar-week me-2 text-primary"></i>This Week
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Tasks Created</span>
+                        <span class="fw-bold">{{ report.weekly_created }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Tasks Closed</span>
+                        <span class="fw-bold text-success">{{ report.weekly_closed }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Avg Resolution</span>
+                        <span class="fw-bold">{{ report.avg_resolution }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-calendar me-2 text-secondary"></i>This Month
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Tasks Created</span>
+                        <span class="fw-bold">{{ report.monthly_created }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Tasks Closed</span>
+                        <span class="fw-bold text-success">{{ report.monthly_closed }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">SLA Compliance</span>
+                        <span class="fw-bold {% if report.sla_compliance >= 90 %}text-success{% elif report.sla_compliance >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ report.sla_compliance }}%
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 7-day Trend table -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-semibold py-2">
+        <i class="fa fa-chart-line me-2 text-secondary"></i>7-Day Trend
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th class="text-center">Created</th>
+                    <th class="text-center">Closed</th>
+                    <th class="text-center">Open (cumulative)</th>
+                    <th>Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report.trend %}
+                <tr>
+                    <td class="fw-semibold">{{ row.date|date:"D, d M" }}</td>
+                    <td class="text-center">
+                        {% if row.created %}
+                        <span class="badge bg-primary">{{ row.created }}</span>
+                        {% else %}
+                        <span class="text-muted">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if row.closed %}
+                        <span class="badge bg-success">{{ row.closed }}</span>
+                        {% else %}
+                        <span class="text-muted">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">{{ row.open }}</td>
+                    <td>
+                        {% with net=row.created|add:"-"|add:row.closed %}
+                        {% if row.created > row.closed %}
+                        <span class="text-danger small">+{{ row.created }}</span>
+                        {% elif row.closed > row.created %}
+                        <span class="text-success small">-{{ row.closed }}</span>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fa fa-inbox fa-2x mb-2 d-block"></i>No data available
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

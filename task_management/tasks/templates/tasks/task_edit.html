@@ -1,0 +1,94 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Edit {{ task.job_id }} — Task Management{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+    <a href="/tasks/{{ task.id }}/" class="btn btn-sm btn-outline-secondary">
+        <i class="fa fa-arrow-left"></i>
+    </a>
+    <h1 class="page-heading mb-0">
+        <i class="fa fa-pen me-2 text-primary"></i>Edit — {{ task.job_id }}
+    </h1>
+</div>
+
+<div class="card shadow-sm" style="max-width:860px;">
+    <div class="card-body">
+        <form method="post" action="/tasks/{{ task.id }}/edit/">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Job ID</label>
+                    <input type="text" name="job_id" class="form-control"
+                           value="{{ task.job_id }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">From Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email_from"
+                           class="form-control {% if errors.email_from %}is-invalid{% endif %}"
+                           value="{{ task.email_from }}" required>
+                    {% if errors.email_from %}<div class="invalid-feedback">{{ errors.email_from }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
+                    <input type="text" name="email_subject"
+                           class="form-control {% if errors.email_subject %}is-invalid{% endif %}"
+                           value="{{ task.email_subject }}" required>
+                    {% if errors.email_subject %}<div class="invalid-feedback">{{ errors.email_subject }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Task Type <span class="text-danger">*</span></label>
+                    <input type="text" name="task_type"
+                           class="form-control {% if errors.task_type %}is-invalid{% endif %}"
+                           value="{{ task.task_type }}" required>
+                    {% if errors.task_type %}<div class="invalid-feedback">{{ errors.task_type }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Priority <span class="text-danger">*</span></label>
+                    <select name="priority" class="form-select" required>
+                        {% for p in priority_choices %}
+                        <option value="{{ p }}" {% if task.priority == p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select name="status" class="form-select">
+                        {% for s in status_choices %}
+                        <option value="{{ s }}" {% if task.status == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Assign To</label>
+                    <select name="assign_to" class="form-select">
+                        <option value="">— Unassigned —</option>
+                        {% for team in teams %}
+                        <option value="{{ team.id }}" {% if task.assign_to_id == team.id %}selected{% endif %}>
+                            {{ team.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Task Detail <span class="text-danger">*</span></label>
+                    <textarea name="task_detail"
+                              class="form-control {% if errors.task_detail %}is-invalid{% endif %}"
+                              rows="4" required>{{ task.task_detail }}</textarea>
+                    {% if errors.task_detail %}<div class="invalid-feedback">{{ errors.task_detail }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Note</label>
+                    <textarea name="note" class="form-control" rows="3">{{ task.note|default:'' }}</textarea>
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-save me-1"></i>Save Changes
+                </button>
+                <a href="/tasks/{{ task.id }}/" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

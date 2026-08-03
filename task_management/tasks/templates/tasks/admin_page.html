@@ -1,0 +1,348 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Admin — Task Management{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-heading">
+        <i class="fa fa-screwdriver-wrench me-2 text-primary"></i>Administration
+    </h1>
+</div>
+
+<div class="row g-3">
+    <!-- Django admin -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-lock me-2 text-secondary"></i>Django Admin
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Full superuser interface for managing users, groups, and all model data.
+                </p>
+                <a href="/admin/" target="_blank" class="btn btn-outline-dark btn-sm w-100">
+                    <i class="fa fa-external-link me-1"></i>Open Django Admin
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team management -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-users me-2 text-secondary"></i>Teams
+                </span>
+                <span class="badge bg-primary rounded-pill">{{ teams|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for team in teams %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-3">
+                        <div>
+                            <span class="fw-semibold">{{ team.name }}</span>
+                            {% if team.email %}
+                            <br><small class="text-muted">{{ team.email }}</small>
+                            {% endif %}
+                        </div>
+                        <span class="badge {% if team.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ team.is_active|yesno:"Active,Inactive" }}
+                        </span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted small">No teams yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer bg-white py-2">
+                <a href="/admin/tasks/team/" target="_blank" class="btn btn-sm btn-outline-primary w-100">
+                    <i class="fa fa-pen me-1"></i>Manage Teams
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment rules -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-route me-2 text-secondary"></i>Auto-Assignment Rules
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>Keyword</th><th>Assigned Team</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in assignment_rules %}
+                        <tr>
+                            <td>{{ rule.keyword }}</td>
+                            <td>{{ rule.team.name }}</td>
+                            <td class="text-end">
+                                <form method="post" action="{% url 'assignment-rule-delete' rule.keyword %}"
+                                      hx-post="{% url 'assignment-rule-delete' rule.keyword %}"
+                                      hx-target="#rule-alert"
+                                      hx-swap="innerHTML"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Delete this rule?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-link btn-sm p-0 text-danger">
+                                        <i class="fa fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-muted small">No rules yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white py-2">
+                <form method="post" action="{% url 'assignment-rule-add' %}"
+                      hx-post="{% url 'assignment-rule-add' %}"
+                      hx-target="#rule-alert"
+                      hx-swap="innerHTML"
+                      class="row g-2">
+                    {% csrf_token %}
+                    <div class="col-5">
+                        <input type="text" name="keyword" class="form-control form-control-sm" placeholder="Keyword" required>
+                    </div>
+                    <div class="col-5">
+                        <select name="team_id" class="form-select form-select-sm" required>
+                            <option value="">Team</option>
+                            {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div id="rule-alert" class="mt-0"></div>
+            <div class="card-footer bg-white py-2 text-muted small">
+                <i class="fa fa-info-circle me-1"></i>
+                Rules applied by n8n workflow on email intake.
+            </div>
+        </div>
+    </div>
+
+    <!-- API reference -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-code me-2 text-secondary"></i>REST API
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Browse the DRF browsable API or use the endpoints below.
+                </p>
+                <ul class="list-unstyled small mb-3">
+                    <li><code>GET /task-api/tasks/</code> — list tasks</li>
+                    <li><code>POST /task-api/tasks/</code> — create task</li>
+                    <li><code>GET /task-api/teams/</code> — list teams</li>
+                    <li><code>GET /task-api/tasks/dashboard/</code> — metrics</li>
+                </ul>
+                <a href="/task-api/" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="fa fa-external-link me-1"></i>Open API Browser
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- n8n -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-diagram-project me-2 text-secondary"></i>n8n
+                </span>
+                {% if n8n_cfg.is_active %}
+                <span class="badge bg-success rounded-pill">Active</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Workflow automation for email intake and routing.
+                </p>
+                <form method="post" action="{% url 'n8n-config-save' %}" class="row g-2 mb-2"
+                      hx-post="{% url 'n8n-config-save' %}"
+                      hx-target="#n8n-alert"
+                      hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="form-label small mb-1">Base URL</label>
+                        <input type="url" name="base_url" value="{{ n8n_cfg.base_url }}"
+                               class="form-control form-control-sm" placeholder="http://localhost:5678">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1">API Key <span class="text-muted">(optional)</span></label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="api_key" value="{{ n8n_cfg.api_key }}"
+                                   class="form-control" placeholder="n8n API key" id="n8n-apikey">
+                            <button class="btn btn-outline-secondary" type="button" id="toggle-n8n-apikey">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="n8n-active"
+                                   {% if n8n_cfg.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="n8n-active">Enable n8n integration</label>
+                        </div>
+                    </div>
+                    <div class="col-12 d-grid gap-2">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fa fa-save me-1"></i>Save
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-success"
+                                hx-post="{% url 'n8n-config-test' %}"
+                                hx-target="#n8n-alert"
+                                hx-swap="innerHTML">
+                            <i class="fa fa-plug me-1"></i>Test Connection
+                        </button>
+                    </div>
+                </form>
+                <div id="n8n-alert" class="mt-2"></div>
+                <a href="{{ n8n_cfg.base_url }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+                    <i class="fa fa-external-link me-1"></i>Open n8n
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ClickUp -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-list-check me-2 text-secondary"></i>ClickUp
+                </span>
+                {% if clickup_cfg.is_active %}
+                <span class="badge bg-success rounded-pill">Active</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Sync tasks from ClickUp workspace.
+                </p>
+                <form method="post" action="{% url 'clickup-config-save' %}"
+                      hx-post="{% url 'clickup-config-save' %}"
+                      hx-target="#clickup-alert"
+                      hx-swap="innerHTML"
+                      class="row g-2 mb-2">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="form-label small mb-1">API Token</label>
+                        <div class="input-group input-group-sm">
+                            <input type="password" name="api_token" value="{{ clickup_cfg.api_token }}"
+                                   class="form-control" placeholder="ClickUp Personal API Key" id="clickup-apikey">
+                            <button class="btn btn-outline-secondary" type="button" id="toggle-clickup-apikey">
+                                <i class="fa fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1">Workspace ID</label>
+                        <input type="text" name="workspace_id" value="{{ clickup_cfg.workspace_id }}"
+                               class="form-control form-control-sm" placeholder="ClickUp Workspace ID">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="clickup-active"
+                                   {% if clickup_cfg.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="clickup-active">Enable ClickUp integration</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fa fa-save me-1"></i>Save
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100"
+                                hx-post="{% url 'clickup-config-test' %}"
+                                hx-target="#clickup-alert"
+                                hx-swap="innerHTML">
+                            <i class="fa fa-plug me-1"></i>Test
+                        </button>
+                    </div>
+                </form>
+                <div id="clickup-alert" class="mt-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-bolt me-2 text-secondary"></i>Redis Cache
+                </span>
+                {% if redis_cfg.is_active %}
+                <span class="badge bg-success rounded-pill">Active</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Cache keys: dashboard (2 min), reports (5 min), teams (10 min).
+                </p>
+                <form method="post" action="{% url 'redis-config-save' %}"
+                      hx-post="{% url 'redis-config-save' %}"
+                      hx-target="#redis-alert"
+                      hx-swap="innerHTML"
+                      class="row g-2 mb-2">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="form-label small mb-1">Redis URL</label>
+                        <input type="url" name="url" value="{{ redis_cfg.url }}"
+                               class="form-control form-control-sm" placeholder="redis://localhost:6379/0">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="redis-active"
+                                   {% if redis_cfg.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="redis-active">Enable Redis cache</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fa fa-save me-1"></i>Save
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100"
+                                hx-post="{% url 'redis-config-test' %}"
+                                hx-target="#redis-alert"
+                                hx-swap="innerHTML">
+                            <i class="fa fa-plug me-1"></i>Test
+                        </button>
+                    </div>
+                </form>
+                <div id="redis-alert" class="mt-1"></div>
+                <form method="post" action="/admin-page/" class="mt-2">
+                    {% csrf_token %}
+                    <button type="submit" name="flush_cache" value="1"
+                            class="btn btn-sm btn-outline-warning w-100">
+                        <i class="fa fa-trash-can me-1"></i>Flush All Cache
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

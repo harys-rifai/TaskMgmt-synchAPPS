@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Task Management{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <!-- HTMX -->
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12" defer></script>
+
+    <style>
+        :root {
+            --sidebar-width: 220px;
+            --topbar-height: 56px;
+        }
+
+        body { background: #f4f6fb; }
+
+        /* ── Topbar ── */
+        .topbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: var(--topbar-height);
+            background: #1a1d2e;
+            display: flex; align-items: center;
+            padding: 0 1.25rem;
+            z-index: 1030;
+            box-shadow: 0 2px 8px rgba(0,0,0,.3);
+        }
+        .topbar .brand {
+            color: #fff; font-weight: 700; font-size: 1.1rem;
+            text-decoration: none; letter-spacing: .02em;
+        }
+        .topbar .brand span { color: #6ea8fe; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            position: fixed; top: var(--topbar-height); left: 0; bottom: 0;
+            width: var(--sidebar-width);
+            background: #1e2235;
+            overflow-y: auto;
+            z-index: 1020;
+            padding-top: .75rem;
+        }
+        .sidebar .nav-label {
+            color: #6c7aad; font-size: .68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .08em;
+            padding: .9rem 1.25rem .3rem;
+        }
+        .sidebar .nav-link {
+            color: #a8b2d8;
+            padding: .55rem 1.25rem;
+            border-radius: 0;
+            display: flex; align-items: center; gap: .65rem;
+            font-size: .875rem;
+            transition: background .15s, color .15s;
+        }
+        .sidebar .nav-link:hover { background: #2a2f4a; color: #fff; }
+        .sidebar .nav-link.active {
+            background: linear-gradient(90deg, #3b5bdb 0%, #2f49c2 100%);
+            color: #fff; font-weight: 600;
+        }
+        .sidebar .nav-link .fa { width: 18px; text-align: center; font-size: .9rem; }
+
+        /* ── Main content ── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--topbar-height);
+            padding: 1.75rem;
+            min-height: calc(100vh - var(--topbar-height));
+        }
+
+        /* ── Cards ── */
+        .metric-card {
+            border: none; border-radius: 12px;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,.07);
+        }
+        .metric-card .metric-value {
+            font-size: 2rem; font-weight: 700; line-height: 1;
+            margin-bottom: .25rem;
+        }
+        .metric-card .metric-label {
+            font-size: .78rem; color: #6c757d; text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* ── Priority / Status colours ── */
+        .priority-High   { border-left: 4px solid #dc3545 !important; }
+        .priority-Medium { border-left: 4px solid #ffc107 !important; }
+        .priority-Low    { border-left: 4px solid #28a745 !important; }
+
+        /* ── Tables ── */
+        .table th { font-size: .78rem; text-transform: uppercase;
+                    letter-spacing: .05em; color: #6c757d; }
+        .table td { vertical-align: middle; font-size: .875rem; }
+
+        /* ── Page heading ── */
+        .page-heading { font-size: 1.4rem; font-weight: 700; color: #1a1d2e; }
+        .page-heading small { font-size: .85rem; font-weight: 400; color: #6c757d; }
+
+        /* ── HTMX indicator ── */
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline-block; }
+    </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+    <a href="/dashboard/" class="brand me-auto">
+        <i class="fa fa-circle-nodes me-2" style="color:#6ea8fe;"></i>Task<span>Mgmt</span>
+    </a>
+    <span class="text-secondary me-3" style="font-size:.8rem;">
+        <i class="fa fa-circle text-success me-1" style="font-size:.5rem;"></i>Connected
+    </span>
+    <span class="text-light me-3" style="font-size:.85rem;">
+        <i class="fa fa-user-circle me-1"></i>{{ request.user.username }}
+    </span>
+    <form method="post" action="/logout/" class="d-inline m-0">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-sm btn-outline-light"
+                style="font-size:.8rem; padding:.25rem .75rem;">
+            <i class="fa fa-right-from-bracket me-1"></i>Logout
+        </button>
+    </form>
+</header>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+    <p class="nav-label">Main</p>
+    <a href="/dashboard/"  class="nav-link {% block nav_dashboard  %}{% endblock %}">
+        <i class="fa fa-gauge-high fa"></i> Dashboard
+    </a>
+    <a href="/tasks/"      class="nav-link {% block nav_tasks      %}{% endblock %}">
+        <i class="fa fa-list-check fa"></i> Tasks
+    </a>
+    <a href="/assignment/" class="nav-link {% block nav_assignment %}{% endblock %}">
+        <i class="fa fa-people-arrows fa"></i> Assignment
+    </a>
+    <a href="/reports/"    class="nav-link {% block nav_reports    %}{% endblock %}">
+        <i class="fa fa-chart-bar fa"></i> Reports
+    </a>
+
+    <p class="nav-label mt-2">System</p>
+    <a href="/admin-page/" class="nav-link {% block nav_admin     %}{% endblock %}">
+        <i class="fa fa-screwdriver-wrench fa"></i> Admin
+    </a>
+    <a href="/admin/"      class="nav-link" target="_blank">
+        <i class="fa fa-lock fa"></i> Django Admin
+    </a>
+</nav>
+
+<!-- Main -->
+<main class="main-content">
+    {% if messages %}
+    <div class="mb-3">
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show py-2" role="alert">
+            {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Pass CSRF token to all HTMX requests automatically
+    document.addEventListener('htmx:configRequest', function(evt) {
+        evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

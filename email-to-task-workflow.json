@@ -1,0 +1,131 @@
+{
+  "name": "Email to Task - Outlook to Django",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "folderId": "inbox",
+          "subject": ""
+        },
+        "options": {}
+      },
+      "id": "outlook-trigger",
+      "name": "Outlook Trigger",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "outlook-credential",
+          "name": "Outlook Shared Mailbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an AI assistant that extracts task information from emails. Return JSON only.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze this email and extract task information.\\n\\nSubject: {{ $json.subject }}\\n\\nBody: {{ $json.body }}\\n\\nReturn JSON only with these fields:\\n{\\\"task_type\\\":\\\"\\\",\\\"priority\\\":\\\"\\\",\\\"task_detail\\\":\\\"\\\",\\\"assign_to\\\":\\\"\\\",\\\"note\\\":\\\"\\\"}\"\n    }\n  ],\n  \"temperature\": 0.3\n}",
+        "options": {}
+      },
+      "id": "openai-node",
+      "name": "OpenAI Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openai-header-auth",
+          "name": "OpenAI Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/task-api/tasks/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job_id\": \"JOB-\" + new Date().toISOString().slice(0,10).replace(/-/g,'') + \"-\" + String(Math.floor(Math.random()*10000)).padStart(4,'0'),\n  \"email_from\": \"{{ $json.from }}\",\n  \"email_subject\": \"{{ $json.subject }}\",\n  \"task_type\": \"{{ $json.task_type }}\",\n  \"task_detail\": \"{{ $json.task_detail }}\",\n  \"priority\": \"{{ $json.priority }}\",\n  \"status\": \"Open\"\n}",
+        "options": {}
+      },
+      "id": "django-api",
+      "name": "Send to Django API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst choices = result.choices;\nif (!choices || choices.length === 0) {\n  throw new Error('No AI response');\n}\nconst content = choices[0].message.content;\nconst extracted = JSON.parse(content);\nreturn [{\n  json: {\n    ...extracted,\n    subject: result.request.body.messages[1].content.match(/Subject: (.+?)\\\\n/)?.[1] || '',\n    body: result.request.body.messages[1].content.match(/Body: (.+)/s)?.[1] || '',\n  }\n}];"
+      },
+      "id": "parse-ai-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 520]
+    }
+  ],
+  "connections": {
+    "Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Extract": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Send to Django API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "tags": []
+}

@@ -1,0 +1,39 @@
+{% for task in page_obj %}
+<tr id="task-row-{{ task.id }}">
+    <td><a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none">{{ task.job_id }}</a></td>
+    <td class="text-truncate" style="max-width:140px;">{{ task.email_from }}</td>
+    <td class="text-truncate" style="max-width:180px;">{{ task.email_subject }}</td>
+    <td>{{ task.task_type }}</td>
+    <td>
+        {% if task.priority == 'High' %}
+        <span class="badge bg-danger">High</span>
+        {% elif task.priority == 'Medium' %}
+        <span class="badge bg-warning text-dark">Medium</span>
+        {% else %}
+        <span class="badge bg-success">Low</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if task.status == 'Open' %}<span class="badge bg-warning text-dark">
+        {% elif task.status == 'In Progress' %}<span class="badge bg-info text-dark">
+        {% elif task.status == 'Closed' %}<span class="badge bg-secondary">
+        {% elif task.status == 'Assigned' %}<span class="badge bg-primary">
+        {% elif task.status == 'Completed' %}<span class="badge bg-success">
+        {% else %}<span class="badge bg-light text-dark border">
+        {% endif %}{{ task.status }}</span>
+    </td>
+    <td>{{ task.assign_to.name|default:"—" }}</td>
+    <td class="text-nowrap">{{ task.updated_at|date:"d M H:i" }}</td>
+    <td class="text-nowrap">
+        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0">Edit</a>
+        <button class="btn btn-sm btn-outline-danger py-0"
+                hx-post="/tasks/{{ task.id }}/delete/"
+                hx-confirm="Delete task {{ task.job_id }}?"
+                hx-target="#task-row-{{ task.id }}"
+                hx-swap="outerHTML swap:0.3s"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+    </td>
+</tr>
+{% empty %}
+<tr><td colspan="9" class="text-center text-muted py-4">No tasks found</td></tr>
+{% endfor %}

@@ -1,0 +1,464 @@
+{
+  "name": "Email → Router → Teams + Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "folderId": "inbox",
+          "subject": ""
+        },
+        "options": {}
+      },
+      "id": "outlook-trigger",
+      "name": "Outlook Trigger",
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "outlook-credential",
+          "name": "Outlook Shared Mailbox"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\nconst subject = email.subject || '';\nconst body = email.body || '';\nconst from = email.from || '';\n\nlet priority = 'Low';\nlet route = 'general';\n\nconst subjectLower = subject.toLowerCase();\nconst bodyLower = body.toLowerCase();\n\nif (subjectLower.includes('urgent') || subjectLower.includes('critical') || bodyLower.includes('urgent') || bodyLower.includes('critical')) {\n  priority = 'High';\n  route = 'high';\n} else if (subjectLower.includes('sap') || bodyLower.includes('sap')) {\n  priority = 'High';\n  route = 'sap';\n} else if (subjectLower.includes('database') || bodyLower.includes('database') || subjectLower.includes('dba') || bodyLower.includes('dba')) {\n  priority = 'Medium';\n  route = 'database';\n} else if (subjectLower.includes('vpn') || bodyLower.includes('vpn')) {\n  priority = 'Medium';\n  route = 'network';\n} else if (subjectLower.includes('laptop') || bodyLower.includes('laptop') || subjectLower.includes('hardware') || bodyLower.includes('hardware')) {\n  priority = 'Medium';\n  route = 'it';\n} else if (subjectLower.includes('application') || bodyLower.includes('application') || subjectLower.includes('app') || bodyLower.includes('app')) {\n  priority = 'Low';\n  route = 'app';\n}\n\nreturn [{\n  json: {\n    ...email,\n    priority,\n    route,\n    subject,\n    body,\n    from,\n    task_type: route,\n  }\n}];"
+      },
+      "id": "router-node",
+      "name": "Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "high"
+            }
+          ]
+        }
+      },
+      "id": "switch-high",
+      "name": "High Priority",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "sap"
+            }
+          ]
+        }
+      },
+      "id": "switch-sap",
+      "name": "SAP Team",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "database"
+            }
+          ]
+        }
+      },
+      "id": "switch-database",
+      "name": "DBA Team",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "network"
+            }
+          ]
+        }
+      },
+      "id": "switch-network",
+      "name": "Network Team",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 550]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "it"
+            }
+          ]
+        }
+      },
+      "id": "switch-it",
+      "name": "IT Support",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "app"
+            }
+          ]
+        }
+      },
+      "id": "switch-app",
+      "name": "App Support",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 850]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.route }}",
+              "operation": "equal",
+              "value2": "general"
+            }
+          ]
+        }
+      },
+      "id": "switch-general",
+      "name": "General",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [690, 1000]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.microsoft.com/v1.0/teams/{{ $json.team_id }}/channels/{{ $json.channel_id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"body\": {\n    \"content\": \"<h3>New Task Created</h3>\\n<p><b>Job ID:</b> {{ $json.job_id }}</p>\\n<p><b>Priority:</b> {{ $json.priority }}</p>\\n<p><b>Assign To:</b> {{ $json.assign_to }}</p>\\n<p><b>Subject:</b> {{ $json.subject }}</p>\\n<p><b>Detail:</b> {{ $json.task_detail }}</p>\"\n  }\n}",
+        "options": {}
+      },
+      "id": "teams-notification",
+      "name": "Teams Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{ $json.telegram_token }}/sendMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $json.telegram_chat_id }}\",\n  \"text\": \"New Task Created\\n\\nJob ID: {{ $json.job_id }}\\nPriority: {{ $json.priority }}\\nAssign To: {{ $json.assign_to }}\\nSubject: {{ $json.subject }}\\nDetail: {{ $json.task_detail }}\",\n  \"parse_mode\": \"HTML\"\n}",
+        "options": {}
+      },
+      "id": "telegram-notification",
+      "name": "Telegram Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/task-api/tasks/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"email_from\": \"{{ $json.from }}\",\n  \"email_subject\": \"{{ $json.subject }}\",\n  \"task_type\": \"{{ $json.task_type }}\",\n  \"task_detail\": \"{{ $json.body }}\",\n  \"priority\": \"{{ $json.priority }}\",\n  \"status\": \"Open\"\n}",
+        "options": {}
+      },
+      "id": "django-api",
+      "name": "Send to Django API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  results.push({\n    json: {\n      ...item.json,\n      job_id: 'JOB-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(Math.floor(Math.random()*10000)).padStart(4,'0'),\n      assign_to: item.json.assign_to || 'Unassigned',\n      task_detail: item.json.body || item.json.task_detail || '',\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "format-task",
+      "name": "Format Task Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 550]
+    }
+  ],
+  "connections": {
+    "Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "High Priority",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SAP Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DBA Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Network Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IT Support",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "App Support",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "General",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Priority": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SAP Team": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DBA Team": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Network Team": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IT Support": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "App Support": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "General": {
+      "main": [
+        [
+          {
+            "node": "Teams Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Task Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Task Data": {
+      "main": [
+        [
+          {
+            "node": "Send to Django API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "tags": []
+}
