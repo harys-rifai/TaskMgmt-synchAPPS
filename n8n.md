@@ -16,8 +16,7 @@ Membangun aplikasi internal yang mampu:
 - Mengirim notifikasi ke Microsoft Teams
 - Menyediakan reporting dan KPI untuk Manager
 
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGE4MTVmZC05YjllLTQ3YWMtYTRkMC00YWRmYjNmNmE4NjMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiNDk3MDIwNzYtY2NhOC00YjVjLWE5NWMtYjM5MzRiNjQ3M2Q5IiwiaWF0IjoxNzg1Njg4MzE5fQ.S8_i_Q8vZhl1ZyTr9eLJjvs05YNDk9AH63aZf3tSeCM
+ 
 ---
 
 # 2. Arsitektur Sistem

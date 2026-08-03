@@ -39,8 +39,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / 'task_management' / 'templates',
-            BASE_DIR / 'task_management' / 'tasks' / 'templates',
+            BASE_DIR / 'tasks' / 'templates',
         ],
         'APP_DIRS': True,
         'OPTIONS': {
