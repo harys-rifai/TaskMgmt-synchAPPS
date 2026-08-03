@@ -3,7 +3,8 @@ from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.contrib import messages
 from django.utils.html import format_html
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, TaskSync, RedisConfig, AssignmentRule
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule
+from .forms import DatabaseConfigForm
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
@@ -198,3 +199,39 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['show_test_button'] = True
         return super().change_view(request, object_id, form_url, extra_context)
+
+
+@admin.register(DatabaseConfig)
+class DatabaseConfigAdmin(admin.ModelAdmin):
+    form = DatabaseConfigForm
+    list_display = ('engine', 'name', 'host', 'is_active', 'test_connection')
+    list_filter = ('is_active', 'engine')
+    search_fields = ('name', 'host')
+    change_form_template = 'admin/tasks/databaseconfig/change_form.html'
+
+    def test_connection(self, obj):
+        return format_html(
+            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            reverse('admin:tasks_databaseconfig_test', args=[obj.pk])
+        )
+    test_connection.short_description = 'Test Connection'
+    test_connection.allow_tags = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:pk>/test/',
+                self.admin_site.admin_view(self.test_view),
+                name='tasks_databaseconfig_test',
+            ),
+        ]
+        return custom_urls + urls
+
+    def test_view(self, request, pk):
+        from .views import _test_database_config
+        obj = self.get_object(request, pk)
+        result = _test_database_config(obj)
+        level = messages.SUCCESS if result['ok'] else messages.ERROR
+        self.message_user(request, result['message'], level=level)
+        return HttpResponseRedirect(reverse('admin:tasks_databaseconfig_change', args=[pk]))

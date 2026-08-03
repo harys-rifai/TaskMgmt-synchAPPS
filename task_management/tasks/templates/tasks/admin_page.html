@@ -155,6 +155,87 @@
         </div>
     </div>
 
+    <!-- Database -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-database me-2 text-secondary"></i>Database
+                </span>
+                {% if database_cfg.is_active %}
+                <span class="badge bg-success rounded-pill">Active</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Configure database connection for Django.
+                </p>
+                <form method="post" action="{% url 'database-config-save' %}"
+                      hx-post="{% url 'database-config-save' %}"
+                      hx-target="#db-alert"
+                      hx-swap="innerHTML"
+                      class="row g-2 mb-2">
+                    {% csrf_token %}
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Engine</label>
+                        <select name="engine" class="form-select form-select-sm">
+                            <option value="postgresql" {% if database_cfg.engine == 'postgresql' %}selected{% endif %}>PostgreSQL</option>
+                            <option value="sqlite3" {% if database_cfg.engine == 'sqlite3' %}selected{% endif %}>SQLite3</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Name</label>
+                        <input type="text" name="name" value="{{ database_cfg.name }}"
+                               class="form-control form-control-sm" placeholder="taskdb">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">User</label>
+                        <input type="text" name="user" value="{{ database_cfg.user }}"
+                               class="form-control form-control-sm" placeholder="postgres">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Password</label>
+                        <input type="password" name="password" value="{{ database_cfg.password }}"
+                               class="form-control form-control-sm" placeholder="Password">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Host</label>
+                        <input type="text" name="host" value="{{ database_cfg.host }}"
+                               class="form-control form-control-sm" placeholder="localhost">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Port</label>
+                        <input type="text" name="port" value="{{ database_cfg.port }}"
+                               class="form-control form-control-sm" placeholder="5008">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="db-active"
+                                   {% if database_cfg.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="db-active">Enable database connection</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fa fa-save me-1"></i>Save
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100"
+                                hx-post="{% url 'database-config-test' %}"
+                                hx-target="#db-alert"
+                                hx-swap="innerHTML">
+                            <i class="fa fa-plug me-1"></i>Test
+                        </button>
+                    </div>
+                </form>
+                <div id="db-alert" class="mt-1"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- n8n -->
     <div class="col-md-4">
         <div class="card shadow-sm h-100">
@@ -344,5 +425,41 @@
             </div>
         </div>
     </div>
+
+    {% if admin_app_list %}
+    {% for app in admin_app_list %}
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-lock me-2 text-secondary"></i>{{ app.name }}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Manage {{ app.name|lower }} records.
+                </p>
+                <ul class="list-unstyled small mb-0">
+                    {% for model in app.models %}
+                    <li class="mb-2">
+                        <div class="fw-semibold text-dark">{{ model.name }}</div>
+                        <div class="mt-1">
+                            {% if model.admin_url %}
+                            <a href="{{ model.admin_url }}" class="btn btn-xs btn-outline-primary me-1" target="_blank">
+                                <i class="fa fa-list me-1"></i>Change list
+                            </a>
+                            {% endif %}
+                            {% if model.add_url %}
+                            <a href="{{ model.add_url }}" class="btn btn-xs btn-outline-success" target="_blank">
+                                <i class="fa fa-plus me-1"></i>Add
+                            </a>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
 </div>
 {% endblock %}

@@ -72,6 +72,10 @@ urlpatterns = [
     path('admin-page/redis/save/', v.redis_config_save, name='redis-config-save'),
     path('admin-page/redis/test/', v.redis_config_test, name='redis-config-test'),
 
+    # Database configuration
+    path('admin-page/database/save/', v.database_config_save, name='database-config-save'),
+    path('admin-page/database/test/', v.database_config_test, name='database-config-test'),
+
     # Assignment rules
     path('admin-page/rules/add/', v.assignment_rule_add, name='assignment-rule-add'),
     path('admin-page/rules/delete/<str:keyword>/', v.assignment_rule_delete, name='assignment-rule-delete'),

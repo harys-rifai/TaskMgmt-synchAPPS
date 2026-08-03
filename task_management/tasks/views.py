@@ -21,7 +21,7 @@ from redis import Redis
 from urllib3.exceptions import InsecureRequestWarning
 import urllib3
 urllib3.disable_warnings(InsecureRequestWarning)
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, TaskSync, RedisConfig, AssignmentRule, PROVIDER_PRESETS
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, PROVIDER_PRESETS
 from .serializers import (
     TeamSerializer, TaskSerializer,
     TaskCreateSerializer, TaskUpdateSerializer,
@@ -731,16 +731,23 @@ def admin_page(request):
     email_cfg = EmailConfig.get()
     n8n_cfg = N8nConfig.get()
     clickup_cfg = ClickUpConfig.get()
+    database_cfg = DatabaseConfig.get()
     redis_cfg = RedisConfig.get()
     assignment_rules = AssignmentRule.objects.select_related('team').all()
+
+    from django.contrib.admin.sites import site
+    admin_app_list = site.get_app_list(request)
+
     return render(request, 'tasks/admin_page.html', {
         'teams':            teams,
         'email_cfg':        email_cfg,
         'n8n_cfg':          n8n_cfg,
         'clickup_cfg':      clickup_cfg,
+        'database_cfg':     database_cfg,
         'redis_cfg':        redis_cfg,
         'assignment_rules': assignment_rules,
         'presets':          json.dumps(PROVIDER_PRESETS),
+        'admin_app_list':   admin_app_list,
     })
 
 
@@ -819,6 +826,8 @@ def _test_clickup_config(cfg):
         if resp.status_code == 200:
             user = resp.json().get('user', {})
             return {'ok': True, 'message': f'ClickUp connected as {user.get("email", "unknown user")}.'}
+        if resp.status_code == 401:
+            return {'ok': False, 'message': 'Unauthorized (401). The API token is invalid or expired. Generate a new Personal API Key in ClickUp Settings > Apps.'}
         return {'ok': False, 'message': f'ClickUp responded with status {resp.status_code}.'}
     except Exception as e:
         return {'ok': False, 'message': f'Connection failed: {e}'}
@@ -921,6 +930,91 @@ def redis_config_test(request):
     """Test connectivity to the configured Redis instance."""
     cfg = RedisConfig.get()
     result = _test_redis_config(cfg)
+
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if result['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if result['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{result["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+# ---------------------------------------------------------------------------
+# Database configuration views
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_http_methods(['POST'])
+def database_config_save(request):
+    """Save database configuration from the admin page form."""
+    cfg = DatabaseConfig.get()
+
+    cfg.engine    = request.POST.get('engine', 'postgresql')
+    cfg.name      = request.POST.get('name', '').strip()
+    cfg.user      = request.POST.get('user', '').strip()
+    cfg.password  = request.POST.get('password', '').strip()
+    cfg.host      = request.POST.get('host', '').strip()
+    cfg.port      = request.POST.get('port', '').strip()
+    cfg.is_active = request.POST.get('is_active') == '1'
+
+    try:
+        cfg.full_clean()
+        cfg.save()
+        msg = {'ok': True, 'message': 'Database configuration saved. Restart the server to apply.'}
+    except Exception as e:
+        msg = {'ok': False, 'message': str(e)}
+
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if msg['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if msg['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{msg["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+def _test_database_config(cfg):
+    """Test database connectivity and return result dict."""
+    if not cfg.is_active or not cfg.name:
+        return {
+            'ok': False,
+            'message': 'Database is not configured or not active. Save a valid config first.',
+        }
+    try:
+        if cfg.engine == 'sqlite3':
+            import sqlite3
+            conn = sqlite3.connect(cfg.name)
+            conn.close()
+            return {'ok': True, 'message': f'SQLite3 connection successful: {cfg.name}'}
+        else:
+            import psycopg2
+            conn = psycopg2.connect(
+                dbname=cfg.name,
+                user=cfg.user,
+                password=cfg.password,
+                host=cfg.host,
+                port=cfg.port,
+                connect_timeout=5,
+            )
+            conn.close()
+            return {'ok': True, 'message': f'Database connection successful: {cfg.name}@{cfg.host}:{cfg.port}'}
+    except Exception as e:
+        return {'ok': False, 'message': f'Connection failed: {e}'}
+
+
+@login_required
+@require_http_methods(['POST'])
+def database_config_test(request, cfg=None):
+    """Test connectivity to the configured database."""
+    if cfg is None:
+        cfg = DatabaseConfig.get()
+
+    result = _test_database_config(cfg)
 
     if request.headers.get('HX-Request'):
         status_class = 'alert-success' if result['ok'] else 'alert-danger'
