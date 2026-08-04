@@ -301,10 +301,12 @@ def partial_by_team(request):
 @login_required
 def dashboard_page(request):
     metrics = _get_dashboard_metrics()
-    recent_tasks = Task.objects.select_related('assign_to').all()[:10]
+    qs = Task.objects.select_related('assign_to').all()
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'tasks/dashboard.html', {
         'metrics': metrics,
-        'recent_tasks': recent_tasks,
+        'page_obj': page_obj,
     })
 
 
