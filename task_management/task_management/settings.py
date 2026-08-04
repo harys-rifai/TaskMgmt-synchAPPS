@@ -1,7 +1,5 @@
 import os
 from pathlib import Path
-from redis import Redis
-from redis.exceptions import RedisError
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -62,6 +60,10 @@ DATABASES = {
         'PASSWORD': 'Password09!',
         'HOST': 'localhost',
         'PORT': '5008',
+        'CONN_MAX_AGE': 60,          # keep DB connections alive for 60s (connection pooling)
+        'OPTIONS': {
+            'connect_timeout': 5,
+        },
     }
 }
 
@@ -80,41 +82,22 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://default:Kp2MdJmmsJTBx6rLy5fmvmkJNKXWBrJR@redis-19062.c15.us-east-1-4.ec2.cloud.redislabs.com:19062')
-REDIS_LOCAL_URL = os.environ.get('REDIS_LOCAL_URL', 'redis://localhost:6379/0')
-
-
-def get_redis_url():
-    try:
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT url, is_active FROM tasks_redisconfig WHERE id=1")
-            row = cursor.fetchone()
-            if row and row[0] and row[1]:
-                return row[0]
-    except Exception:
-        pass
-
-    try:
-        client = Redis.from_url(REDIS_URL, socket_connect_timeout=3, socket_timeout=3)
-        client.ping()
-        return REDIS_URL
-    except (RedisError, TimeoutError, ConnectionError):
-        return REDIS_LOCAL_URL
-
+# Redis configuration — use environment variables or fallback to local
+# No DB queries or network pings during import — let django-redis handle connection errors gracefully
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': get_redis_url(),
+        'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
+            'SOCKET_CONNECT_TIMEOUT': 2,
+            'SOCKET_TIMEOUT': 2,
             'RETRY_ON_TIMEOUT': True,
             'MAX_CONNECTIONS': 50,
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,
+            'IGNORE_EXCEPTIONS': True,  # Critical: fail gracefully if Redis is down
         },
         'KEY_PREFIX': 'taskmgmt',
         'TIMEOUT': 300,
