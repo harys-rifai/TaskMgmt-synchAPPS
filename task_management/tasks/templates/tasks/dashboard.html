@@ -133,6 +133,7 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Assigned To</th>
+                    <th>Created</th>
                     <th>Updated</th>
                 </tr>
             </thead>
@@ -165,7 +166,8 @@
                         {% endif %}{{ task.status }}</span>
                     </td>
                     <td>{{ task.assign_to.name|default:"—" }}</td>
-                    <td class="text-nowrap text-muted small">{{ task.updated_at|date:"d M, H:i" }}</td>
+                    <td class="text-nowrap text-muted small">{{ task.created_at|date:"d M, H:i" }}</td>
+                     <td class="text-nowrap text-muted small">{{ task.updated_at|date:"d M, H:i" }}</td>
                 </tr>
                 {% empty %}
                 <tr>

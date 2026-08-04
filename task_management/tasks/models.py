@@ -124,13 +124,18 @@ class Task(models.Model):
     @classmethod
     def get_next_job_id(cls):
         from django.db import transaction
+        from datetime import datetime
+        now = datetime.now()
+        prefix = f'XLS{now.strftime("%y%m")}-'
         with transaction.atomic():
-            last = cls.objects.filter(job_id__startswith='SCRQ').select_for_update().order_by('-job_id').first()
-            if last and last.job_id.startswith('SCRQ'):
-                num = last.job_id[4:]
-                if num.isdigit():
-                    return f'SCRQ{int(num) + 1}'
-            return 'SCRQ1'
+            last = cls.objects.filter(
+                job_id__startswith=prefix,
+            ).select_for_update().order_by('-job_id').first()
+            if last and last.job_id.startswith(prefix):
+                num_str = last.job_id[len(prefix):]
+                if num_str.isdigit():
+                    return f'{prefix}{int(num_str) + 1:04d}'
+            return f'{prefix}0001'
 
 
 class TaskSync(models.Model):

@@ -91,7 +91,7 @@
         <form method="post" id="import-confirm-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
-            <input type="hidden" name="preview_data" value="{{ preview_data_json|escape }}">
+            <input type="hidden" name="preview_data" id="preview-data-json" value="{{ preview_data_json|escape }}">
             <table class="table table-hover table-bordered mb-0 align-middle" id="import-table">
                 <thead class="table-light sticky-top">
                     <tr>
@@ -105,6 +105,7 @@
                         <th>Status</th>
                         <th>Assign To</th>
                         <th>Note</th>
+                        <th>Create At</th>
                         <th style="width:80px;">Errors</th>
                     </tr>
                 </thead>
@@ -183,12 +184,17 @@
                             <div class="invalid-feedback d-block small">{{ row.errors.assign_to }}</div>
                             {% endif %}
                         </td>
-                        <td>
-                            <input type="text" name="row_{{ row.index }}__note"
-                                   value="{{ row.data.note|escape }}"
-                                   class="form-control form-control-sm" placeholder="Optional">
-                        </td>
-                        <td class="text-center small">
+<td>
+                             <input type="text" name="row_{{ row.index }}__note"
+                                    value="{{ row.data.note|escape }}"
+                                    class="form-control form-control-sm" placeholder="Optional">
+                         </td>
+                         <td>
+                             <input type="text" name="row_{{ row.index }}__create_at"
+                                    value="{{ row.data.create_at|escape }}"
+                                    class="form-control form-control-sm" placeholder="YYYY-MM-DD HH:MM:SS">
+                         </td>
+                         <td class="text-center small">
                             {% if row.has_errors %}
                             <span class="badge bg-danger" title="{{ row.errors|join:', ' }}">
                                 <i class="fa fa-triangle-exclamation"></i> {{ row.errors|length }}
@@ -243,6 +249,25 @@
     const importForm = document.getElementById('import-confirm-form');
     if (importForm) {
         importForm.addEventListener('submit', function (e) {
+            const previewDataEl = document.getElementById('preview-data-json');
+            if (previewDataEl) {
+                const rowInputs = importForm.querySelectorAll('input[name^="row_"], select[name^="row_"], textarea[name^="row_"]');
+                const data = JSON.parse(previewDataEl.value || '[]');
+                rowInputs.forEach(function (input) {
+                    const match = input.name.match(/^row_(\d+)__(\w+)$/);
+                    if (match) {
+                        const idx = parseInt(match[1], 10);
+                        const field = match[2];
+                        if (data[idx]) {
+                            data[idx][field] = input.value;
+                        }
+                    }
+                });
+                previewDataEl.value = JSON.stringify(data);
+                rowInputs.forEach(function (input) {
+                    input.removeAttribute('name');
+                });
+            }
             const btn = document.getElementById('btn-import');
             if (btn) {
                 btn.disabled = true;

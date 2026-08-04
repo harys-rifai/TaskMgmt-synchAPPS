@@ -117,7 +117,8 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Assigned To</th>
-                    <th>Updated</th>
+                    <th>Created</th>
+                     <th>Updated</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -267,7 +268,11 @@
 <div class="modal fade" id="createModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="post" action="/tasks/create/">
+            <form id="create-form" method="post" action="/tasks/create-modal/"
+                  hx-post="/tasks/create-modal/"
+                  hx-target="#create-result"
+                  hx-swap="innerHTML"
+                  hx-on::after-request="if(event.detail.successful){setTimeout(()=>{const m= bootstrap.Modal.getInstance(document.getElementById('createModal'));if(m){m.hide();}document.getElementById('create-form').reset();document.getElementById('create-result').innerHTML='';location.reload();},1200);}">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fa fa-plus-circle me-2"></i>New Task</h5>
@@ -275,10 +280,6 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Job ID <span class="text-danger">*</span></label>
-                            <input type="text" name="job_id" class="form-control" required>
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">From Email <span class="text-danger">*</span></label>
                             <input type="email" name="email_from" class="form-control" required>
@@ -338,6 +339,7 @@
                     </button>
                 </div>
             </form>
+            <div id="create-result" class="px-3 pb-3"></div>
         </div>
     </div>
 </div>

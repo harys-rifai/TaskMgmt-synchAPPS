@@ -21,11 +21,6 @@ import csv
 import io
 import json
 import openpyxl
-from datetime import datetime, timedelta
-from django.db import IntegrityError
-from django.conf import settings
-from django.core.cache import cache
-import json
 import requests
 import subprocess
 import os
@@ -569,6 +564,63 @@ def task_create_page(request):
         'form_data':        form_data,
         'next_job_id':      next_job_id,
     })
+
+
+@login_required
+@require_http_methods(['POST'])
+def task_create_modal(request):
+    """HTMX endpoint for creating a task from the quick-create modal."""
+    errors = {}
+    required = ['email_from', 'email_subject', 'task_type', 'task_detail', 'priority']
+    for f in required:
+        if not request.POST.get(f, '').strip():
+            errors[f] = 'This field is required.'
+
+    if errors:
+        html = (
+            '<div class="alert alert-danger py-2 d-flex align-items-center gap-2">'
+            '<i class="fa fa-circle-xmark"></i>Please fill all required fields.</div>'
+        )
+        return HttpResponse(html)
+
+    assign_to_id = request.POST.get('assign_to') or None
+    job_id = Task.get_next_job_id()
+    try:
+        Task.objects.create(
+            job_id        = job_id,
+            email_from    = request.POST['email_from'].strip(),
+            email_subject = request.POST['email_subject'].strip(),
+            task_type     = request.POST['task_type'].strip(),
+            task_detail   = request.POST['task_detail'].strip(),
+            priority      = request.POST['priority'],
+            status        = request.POST.get('status', 'Open'),
+            note          = request.POST.get('note', '').strip(),
+            assign_to_id  = assign_to_id,
+        )
+    except IntegrityError:
+        job_id = Task.get_next_job_id()
+        Task.objects.create(
+            job_id        = job_id,
+            email_from    = request.POST['email_from'].strip(),
+            email_subject = request.POST['email_subject'].strip(),
+            task_type     = request.POST['task_type'].strip(),
+            task_detail   = request.POST['task_detail'].strip(),
+            priority      = request.POST['priority'],
+            status        = request.POST.get('status', 'Open'),
+            note          = request.POST.get('note', '').strip(),
+            assign_to_id  = assign_to_id,
+        )
+    _invalidate_task_caches()
+
+    html = (
+        '<div class="alert alert-success py-2 d-flex align-items-center gap-2">'
+        f'<i class="fa fa-circle-check"></i>'
+        f'Job ID <strong>{job_id}</strong> tersimpan.'
+        '</div>'
+    )
+    response = HttpResponse(html)
+    response['HX-Trigger'] = 'taskCreated'
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -1828,15 +1880,16 @@ def backup_page(request):
 # ---------------------------------------------------------------------------
 
 IMPORT_FIELD_MAP = {
-    'email_from':    ['email from', 'from', 'email_from', 'from email', 'email'],
-    'email_subject': ['subject', 'email subject', 'email_subject', 'title', 'judul'],
-    'task_type':     ['type', 'task type', 'task_type', 'category', 'kategori'],
-    'task_detail':   ['detail', 'task detail', 'task_detail', 'description', 'deskripsi', 'desc'],
-    'priority':      ['priority', 'prio', 'prioritas'],
-    'status':        ['status', 'state', 'status task'],
-    'assign_to':     ['assign', 'assigned to', 'assign_to', 'team', 'assignee', 'tim'],
-    'note':          ['note', 'notes', 'catatan', 'remark', 'remarks'],
-    'job_id':        ['job id', 'job_id', 'id', 'job', 'kode'],
+    'email_from':    ['email from', 'from', 'email_from', 'from email', 'email', 'email address', 'sender', 'requester', 'nama', 'name', 'pegawai', 'staff', 'pic', 'contact'],
+    'email_subject': ['subject', 'email subject', 'email_subject', 'title', 'judul', 'summary', 'ringkasan', 'kepada', 'to'],
+    'task_type':     ['type', 'task type', 'task_type', 'category', 'kategori', 'tipe', 'jenis', 'group', 'kategori'],
+    'task_detail':   ['detail', 'task detail', 'task_detail', 'description', 'deskripsi', 'desc', 'keterangan', 'details', 'work order', 'wo', 'aktivitas', 'activity', 'request', 'permintaan'],
+    'priority':      ['priority', 'prio', 'prioritas', 'level', 'tingkat'],
+    'status':        ['status', 'state', 'status task', 'keadaan'],
+    'assign_to':     ['assign', 'assigned to', 'assign_to', 'team', 'assignee', 'tim', 'handler', 'pic', 'owner', 'pemilik', 'dba team', 'group'],
+    'note':          ['note', 'notes', 'catatan', 'remark', 'remarks', 'komentar', 'comment', 'handler', 'pic', 'assigned by', 'ditugaskan'],
+    'job_id':        ['job id', 'job_id', 'id', 'job', 'kode', 'ticket', 'no', 'no.', 'number', 'nomor', 'crq', 'change'],
+    'create_at':     ['create at', 'create_at', 'created at', 'created_at', 'date', 'tanggal', 'tgl', 'created'],
 }
 
 IMPORT_REQUIRED_FIELDS = ['email_from', 'email_subject', 'task_type', 'task_detail', 'priority']
@@ -1878,7 +1931,7 @@ def _parse_import_file(uploaded_file):
             if i == 0:
                 raw_headers = [str(c) if c is not None else '' for c in row]
             else:
-                rows.append({str(h) if h is not None else f'col_{j}': (c if c is not None else '') for j, (h, c) in enumerate(zip(raw_headers, row))})
+                rows.append({str(h) if h is not None else f'col_{j}': str(c) if c is not None else '' for j, (h, c) in enumerate(zip(raw_headers, row))})
         wb.close()
     else:
         raise ValueError('Unsupported file format. Please upload CSV or Excel (.xlsx/.xls).')
@@ -1896,11 +1949,6 @@ def _validate_row(row, index, existing_job_ids, teams_list):
         if not value:
             errors[field] = 'This field is required.'
 
-    if 'email_from' not in errors:
-        email = row.get(mapped.get('email_from', ''), '').strip()
-        if email and '@' not in email:
-            errors['email_from'] = 'Invalid email format.'
-
     if 'priority' not in errors or 'priority' in errors:
         priority = row.get(mapped.get('priority', ''), 'Medium').strip()
         if priority and priority not in PRIORITY_CHOICES:
@@ -1916,7 +1964,7 @@ def _validate_row(row, index, existing_job_ids, teams_list):
             errors['assign_to'] = f'Team "{assign_raw}" not found.'
 
     job_id = row.get(mapped.get('job_id', ''), '').strip()
-    if job_id:
+    if job_id and job_id != 'auto':
         if job_id in existing_job_ids:
             errors['job_id'] = 'Duplicate job ID.'
         else:
@@ -1936,6 +1984,7 @@ def _row_to_dict(row, mapped):
         'assign_to':     row.get(mapped.get('assign_to', ''), '').strip(),
         'note':          row.get(mapped.get('note', ''), '').strip(),
         'job_id':        row.get(mapped.get('job_id', ''), '').strip(),
+        'create_at':     row.get(mapped.get('create_at', ''), '').strip(),
     }
 
 
@@ -2040,24 +2089,22 @@ def task_import_confirm(request):
 
     for idx, original in enumerate(original_data):
         edited = {
-            'email_from':    request.POST.get(f'row_{idx}__email_from', original.get('email_from', '')).strip(),
-            'email_subject': request.POST.get(f'row_{idx}__email_subject', original.get('email_subject', '')).strip(),
-            'task_type':     request.POST.get(f'row_{idx}__task_type', original.get('task_type', '')).strip(),
-            'task_detail':   request.POST.get(f'row_{idx}__task_detail', original.get('task_detail', '')).strip(),
-            'priority':      request.POST.get(f'row_{idx}__priority', original.get('priority', 'Medium')).strip() or 'Medium',
-            'status':        request.POST.get(f'row_{idx}__status', original.get('status', 'Open')).strip() or 'Open',
-            'assign_to':     request.POST.get(f'row_{idx}__assign_to', original.get('assign_to', '')).strip(),
-            'note':          request.POST.get(f'row_{idx}__note', original.get('note', '')).strip(),
-            'job_id':        request.POST.get(f'row_{idx}__job_id', original.get('job_id', '')).strip(),
+            'email_from':    original.get('email_from', '').strip(),
+            'email_subject': original.get('email_subject', '').strip(),
+            'task_type':     original.get('task_type', '').strip(),
+            'task_detail':   original.get('task_detail', '').strip(),
+            'priority':      original.get('priority', 'Medium').strip() or 'Medium',
+            'status':        original.get('status', 'Open').strip() or 'Open',
+            'assign_to':     original.get('assign_to', '').strip(),
+            'note':          original.get('note', '').strip(),
+            'job_id':        original.get('job_id', '').strip(),
+            'create_at':     original.get('create_at', '').strip(),
         }
 
         row_errors = []
         for field in IMPORT_REQUIRED_FIELDS:
             if not edited.get(field):
                 row_errors.append(f'{field} is required.')
-
-        if edited.get('email_from') and '@' not in edited['email_from']:
-            row_errors.append('Invalid email format.')
 
         if edited.get('priority') not in PRIORITY_CHOICES:
             row_errors.append(f'Priority must be one of: {", ".join(PRIORITY_CHOICES)}.')
@@ -2075,7 +2122,7 @@ def task_import_confirm(request):
             edited['assign_to'] = None
 
         job_id = edited.get('job_id', '').strip()
-        if job_id:
+        if job_id and job_id != 'auto':
             if job_id in existing_job_ids:
                 row_errors.append('Duplicate job ID.')
             else:
@@ -2107,6 +2154,16 @@ def task_import_confirm(request):
                 created += 1
             else:
                 updated += 1
+            if edited.get('create_at'):
+                try:
+                    create_at = datetime.strptime(edited['create_at'], '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        create_at = datetime.strptime(edited['create_at'], '%Y-%m-%d')
+                    except ValueError:
+                        create_at = None
+                if create_at:
+                    Task.objects.filter(job_id=edited['job_id']).update(created_at=create_at)
         except Exception as e:
             skipped += 1
             errors.append({'row': idx + 1, 'errors': [str(e)]})
@@ -2143,8 +2200,8 @@ def task_import_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="task_import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note'])
-    writer.writerow(['SCRQ1', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note'])
+    writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note', 'create_at'])
+    writer.writerow(['XLS2608-0001', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note', '2026-08-04 10:00:00'])
     return response
 
 

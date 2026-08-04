@@ -35,8 +35,8 @@ class Command(BaseCommand):
         jan_1 = now.replace(year=now.year, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Remove previously seeded data for idempotency
-        Task.objects.filter(job_id__startswith='SCRQ').delete()
-        self.stdout.write(f'Cleaned up old SCRQ tasks. Starting seed of {count} tasks...')
+        Task.objects.filter(job_id__startswith='XLS').delete()
+        self.stdout.write(f'Cleaned up old XLS tasks. Starting seed of {count} tasks...')
 
         # Get active teams
         teams = list(Team.objects.filter(is_active=True))
@@ -45,12 +45,12 @@ class Command(BaseCommand):
             teams = []
 
         # Determine starting job counter
-        last = Task.objects.filter(job_id__startswith='SCRQ').order_by('-job_id').first()
+        last = Task.objects.filter(job_id__startswith='XLS').order_by('-job_id').first()
         start_num = 1
-        if last and last.job_id.startswith('SCRQ'):
-            num_part = last.job_id[4:]
-            if num_part.isdigit():
-                start_num = int(num_part) + 1
+        if last:
+            parts = last.job_id.split('-')
+            if len(parts) == 2 and parts[1].isdigit():
+                start_num = int(parts[1]) + 1
 
         tasks_to_create = []
         for i in range(count):
@@ -71,7 +71,7 @@ class Command(BaseCommand):
             if status in ('Closed', 'Completed', 'Cancelled', 'Rejected') and random.random() > 0.2:
                 closed_at = created_at + timedelta(hours=random.randint(1, 120))
 
-            job_id = f'SCRQ{start_num + i}'
+            job_id = Task.get_next_job_id()
 
             task = Task(
                 job_id=job_id,

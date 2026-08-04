@@ -27,9 +27,9 @@ class Command(BaseCommand):
             self.stdout.write(f'  {label}: created={created}, closed={closed}')
 
         total = Task.objects.count()
-        scq = Task.objects.filter(job_id__startswith='SCRQ').count()
+        xls = Task.objects.filter(job_id__startswith='XLS').count()
         self.stdout.write(f'\nTotal tasks: {total}')
-        self.stdout.write(f'SCRQ tasks: {scq}')
+        self.stdout.write(f'XLS tasks: {xls}')
 
         earliest = Task.objects.order_by('created_at').first()
         latest = Task.objects.order_by('created_at').last()

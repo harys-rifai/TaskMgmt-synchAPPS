@@ -41,6 +41,7 @@ urlpatterns = [
 
     # Task create
     path('tasks/create/',   v.task_create_page,      name='task-create'),
+    path('tasks/create-modal/', v.task_create_modal, name='task-create-modal'),
 
     # Task detail / edit
     path('tasks/<int:pk>/',         v.task_detail_page,    name='task-detail'),
