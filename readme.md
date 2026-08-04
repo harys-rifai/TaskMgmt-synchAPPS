@@ -937,31 +937,54 @@ git push -u origin main
 
 # 22. Screenshots
 
-| Page | Image |
-|------|-------|
-| Login | <img src="img/login.png" width="600" /> |
-| Dashboard | <img src="img/dashboard.png" width="600" /> |
-| Task Board | <img src="img/task-board.png" width="600" /> |
-| Assignment | <img src="img/assign.png" width="600" /> |
-| Admin | <img src="img/admin.png" width="600" /> |
-| Backup | <img src="img/backup.png" width="600" /> |
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
 
-## Previews
+<div align="center">
 
-### Login
-<img src="img/login.png" alt="Login" width="500"/>
+<img src="img/login.png" alt="Login" width="200"/>
 
-### Dashboard
-<img src="img/dashboard.png" alt="Dashboard" width="500"/>
+**Login**
 
-### Task Board
-<img src="img/task-board.png" alt="Task Board" width="500"/>
+</div>
 
-### Assignment
-<img src="img/assign.png" alt="Assignment" width="500"/>
+<div align="center">
 
-### Admin
-<img src="img/admin.png" alt="Admin" width="500"/>
+<img src="img/dashboard.png" alt="Dashboard" width="200"/>
 
-### Backup
-<img src="img/backup.png" alt="Backup" width="500"/>
+**Dashboard**
+
+</div>
+
+<div align="center">
+
+<img src="img/task-board.png" alt="Task Board" width="200"/>
+
+**Task Board**
+
+</div>
+
+<div align="center">
+
+<img src="img/assign.png" alt="Assignment" width="200"/>
+
+**Assignment**
+
+</div>
+
+<div align="center">
+
+<img src="img/admin.png" alt="Admin" width="200"/>
+
+**Admin**
+
+</div>
+
+<div align="center">
+
+<img src="img/backup.png" alt="Backup" width="200"/>
+
+**Backup**
+
+</div>
+
+</div>
