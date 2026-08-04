@@ -932,3 +932,36 @@ git remote add origin https://github.com/harys-rifai/TaskMgmt-synchAPPS.git
 git branch -M main
 git push -u origin main
 ```
+
+---
+
+# 22. Screenshots
+
+| Page | Image |
+|------|-------|
+| Login | <img src="img/login.png" width="600" /> |
+| Dashboard | <img src="img/dashboard.png" width="600" /> |
+| Task Board | <img src="img/task-board.png" width="600" /> |
+| Assignment | <img src="img/assign.png" width="600" /> |
+| Admin | <img src="img/admin.png" width="600" /> |
+| Backup | <img src="img/backup.png" width="600" /> |
+
+## Previews
+
+### Login
+<img src="img/login.png" alt="Login" width="500"/>
+
+### Dashboard
+<img src="img/dashboard.png" alt="Dashboard" width="500"/>
+
+### Task Board
+<img src="img/task-board.png" alt="Task Board" width="500"/>
+
+### Assignment
+<img src="img/assign.png" alt="Assignment" width="500"/>
+
+### Admin
+<img src="img/admin.png" alt="Admin" width="500"/>
+
+### Backup
+<img src="img/backup.png" alt="Backup" width="500"/>
