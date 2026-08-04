@@ -1,41 +1,59 @@
+<div class="row g-3">
 {% for task in page_obj %}
-<div class="col-md-6 col-xl-4 mb-3">
-    <div class="card h-100 shadow-sm priority-{{ task.priority }}" id="task-card-{{ task.id }}">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                    <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none">{{ task.job_id }}</a>
-                    <div class="small text-muted">{{ task.updated_at|date:"d M Y, H:i" }}</div>
+    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-2 mb-3">
+        <div class="card h-100 shadow-sm task-card priority-{{ task.priority }}" id="task-card-{{ task.id }}">
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div class="min-w-0">
+                        <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none small text-truncate d-block" title="{{ task.job_id }}">{{ task.job_id }}</a>
+                        <div class="small text-muted text-nowrap">{{ task.updated_at|date:"d M, H:i" }}</div>
+                    </div>
+                    {% if task.priority == 'High' %}<span class="badge bg-danger" style="font-size:.55rem;">!</span>
+                    {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.55rem;">~</span>
+                    {% else %}<span class="badge bg-success" style="font-size:.55rem;">-</span>{% endif %}
                 </div>
-                {% if task.priority == 'High' %}<span class="badge bg-danger">High</span>
-                {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark">Medium</span>
-                {% else %}<span class="badge bg-success">Low</span>{% endif %}
+                <h6 class="card-title text-truncate mb-1" title="{{ task.email_subject }}">{{ task.email_subject }}</h6>
+                <p class="card-text small text-muted mb-1 text-truncate">{{ task.email_from }}</p>
+                <div class="d-flex flex-wrap gap-1 mb-1">
+                    {% if task.status == 'Open' %}
+                    <span class="badge bg-warning text-dark" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% elif task.status == 'In Progress' %}
+                    <span class="badge bg-info text-dark" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% elif task.status == 'Closed' %}
+                    <span class="badge bg-secondary" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% elif task.status == 'Assigned' %}
+                    <span class="badge bg-primary" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% elif task.status == 'Completed' %}
+                    <span class="badge bg-success" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% else %}
+                    <span class="badge bg-light text-dark border" style="font-size:.55rem;">{{ task.status }}</span>
+                    {% endif %}
+                    <span class="badge bg-info text-dark" style="font-size:.55rem;">{{ task.task_type|truncatechars:12 }}</span>
+                    {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted" style="font-size:.65rem;" title="Has attachments"></i>{% endif %}
+                </div>
+                {% if task.assign_to %}
+                <div class="small text-muted text-truncate">
+                    <i class="fa fa-user me-1"></i>{{ task.assign_to.name }}
+                </div>
+                {% endif %}
             </div>
-            <h6 class="card-title text-truncate mb-1" title="{{ task.email_subject }}">{{ task.email_subject }}</h6>
-            <p class="card-text small text-muted mb-2 text-truncate">{{ task.email_from }}</p>
-            <div class="d-flex flex-wrap gap-2 mb-2">
-                <span class="badge bg-light text-dark border">{{ task.status }}</span>
-                <span class="badge bg-info text-dark">{{ task.task_type }}</span>
-                {% if task.attachments.exists %}<span class="badge bg-secondary"><i class="fa fa-paperclip me-1"></i>Attachments</span>{% endif %}
+            <div class="card-footer bg-white py-1 px-2 d-flex justify-content-end gap-1">
+                <a href="/tasks/{{ task.id }}/" class="btn btn-xs btn-outline-secondary py-0" title="View"><i class="fa fa-eye"></i></a>
+                <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0" title="Edit"><i class="fa fa-pen"></i></a>
+                <button class="btn btn-xs btn-outline-danger py-0" title="Delete"
+                        hx-post="/tasks/{{ task.id }}/delete/"
+                        hx-confirm="Delete task {{ task.job_id }}?"
+                        hx-target="#task-card-{{ task.id }}"
+                        hx-swap="outerHTML swap:0.3s"
+                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'><i class="fa fa-trash"></i></button>
             </div>
-            {% if task.assign_to %}
-            <div class="small text-muted">
-                <i class="fa fa-user me-1"></i>{{ task.assign_to.name }}
-            </div>
-            {% endif %}
-        </div>
-        <div class="card-footer bg-white py-2 d-flex justify-content-end gap-1">
-            <a href="/tasks/{{ task.id }}/" class="btn btn-sm btn-outline-secondary">View</a>
-            <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary">Edit</a>
-            <button class="btn btn-sm btn-outline-danger"
-                    hx-post="/tasks/{{ task.id }}/delete/"
-                    hx-confirm="Delete task {{ task.job_id }}?"
-                    hx-target="#task-card-{{ task.id }}"
-                    hx-swap="outerHTML swap:0.3s"
-                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
         </div>
     </div>
-</div>
 {% empty %}
-<div class="col-12 text-center text-muted py-4">No tasks found</div>
+    <div class="col-12 text-center text-muted py-4">
+        <i class="fa fa-inbox fa-2x mb-2 d-block"></i>
+        <p class="mb-1">No tasks found</p>
+        <small>Try clearing the filters or adjust your search</small>
+    </div>
 {% endfor %}
+</div>

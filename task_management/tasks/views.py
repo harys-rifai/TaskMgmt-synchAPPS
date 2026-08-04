@@ -15,6 +15,7 @@ from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
 from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from django.db import IntegrityError
+from django.conf import settings
 from django.core.cache import cache
 import json
 import requests
@@ -759,7 +760,45 @@ def reports_page(request):
     week_start  = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
 
-    # 7-day trend
+    # 7-day trend (weekly)
+    weekly_trend = []
+    for i in range(6, -1, -1):
+        day_start = today_start - timedelta(days=i)
+        day_end   = day_start + timedelta(days=1)
+        weekly_trend.append({
+            'label':  day_start.strftime('%a %d'),
+            'created': Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
+            'closed':  Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count(),
+        })
+
+    # 30-day trend (monthly)
+    monthly_trend = []
+    for i in range(29, -1, -1):
+        day_start = today_start - timedelta(days=i)
+        day_end   = day_start + timedelta(days=1)
+        monthly_trend.append({
+            'label':  day_start.strftime('%d %b'),
+            'created': Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
+            'closed':  Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count(),
+        })
+
+    # 12-month trend (yearly)
+    yearly_trend = []
+    for i in range(11, -1, -1):
+        y = now.year
+        m = now.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        m_start = now.replace(year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
+        m_next  = now.replace(year=y, month=m+1, day=1, hour=0, minute=0, second=0, microsecond=0) if m < 12 else now.replace(year=y+1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        yearly_trend.append({
+            'label':   m_start.strftime('%b %Y'),
+            'created': Task.objects.filter(created_at__gte=m_start, created_at__lt=m_next).count(),
+            'closed':  Task.objects.filter(status='Closed', closed_at__gte=m_start, closed_at__lt=m_next).count(),
+        })
+
+    # 7-day trend (legacy, used by the table)
     trend = []
     for i in range(6, -1, -1):
         day_start = today_start - timedelta(days=i)
@@ -787,6 +826,9 @@ def reports_page(request):
         'monthly_closed':   Task.objects.filter(status='Closed', closed_at__gte=month_start).count(),
         'sla_compliance':   0,
         'trend':            trend,
+        'weekly_trend':     weekly_trend,
+        'monthly_trend':    monthly_trend,
+        'yearly_trend':     yearly_trend,
     }
     cache.set(CACHE_REPORTS, report, TTL_REPORTS)
     return render(request, 'tasks/reports.html', {'report': report})

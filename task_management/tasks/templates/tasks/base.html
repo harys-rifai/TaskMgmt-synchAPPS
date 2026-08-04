@@ -149,32 +149,42 @@
         /* ── Card view ── */
         .task-card {
             border: none;
-            border-radius: 12px;
+            border-radius: 8px;
             transition: transform .15s, box-shadow .15s;
         }
         .task-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,0,0,.1) !important;
         }
+        #task-cards-body .btn-xs {
+            min-width: 24px;
+            padding: .15rem .3rem;
+            font-size: .65rem;
+        }
 
         /* ── List view ── */
         #task-list-body .list-group-item {
-            border-left: 4px solid transparent;
-            transition: background .1s;
+            border: none;
+            border-radius: 8px;
+            padding: .75rem 1rem;
+            margin-bottom: 6px;
+            background: #fff;
+            border-left: 4px solid #dee2e6;
+            transition: background .15s, box-shadow .15s, border-color .15s;
         }
         #task-list-body .list-group-item:hover {
             background: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
         }
+
+        /* Priority accent borders on list items */
+        #task-list-body .list-group-item.priority-High   { border-left-color: #dc3545 !important; }
+        #task-list-body .list-group-item.priority-Medium { border-left-color: #ffc107 !important; }
+        #task-list-body .list-group-item.priority-Low    { border-left-color: #28a745 !important; }
 
         /* ── View switcher buttons ── */
         .btn-group .btn {
             min-width: 36px;
-        }
-
-        /* ── List view ── */
-        #task-list-body .list-group-item {
-            padding-top: .35rem;
-            padding-bottom: .35rem;
         }
     </style>
 </head>

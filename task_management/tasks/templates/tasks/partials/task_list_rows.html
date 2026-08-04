@@ -1,31 +1,59 @@
 {% for task in page_obj %}
-<div class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-1 px-2"
-     id="task-row-{{ task.id }}" style="font-size:.85rem;">
-    <div class="flex-grow-1 min-w-0">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none small">{{ task.job_id }}</a>
-            {% if task.priority == 'High' %}<span class="badge bg-danger" style="font-size:.65rem;">High</span>
-            {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
-            {% else %}<span class="badge bg-success" style="font-size:.65rem;">Low</span>{% endif %}
-            <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ task.status }}</span>
-            {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted" style="font-size:.65rem;" title="Has attachments"></i>{% endif %}
-            <small class="text-muted" style="font-size:.7rem;">{{ task.updated_at|date:"d M H:i" }}</small>
+<div class="list-group-item list-group-item-action priority-{{ task.priority }} py-3" id="task-row-{{ task.id }}" style="font-size:.85rem;">
+    <div class="d-flex align-items-start gap-3">
+        <div class="flex-grow-1 min-w-0">
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                <a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none">{{ task.job_id }}</a>
+                {% if task.status == 'Open' %}
+                <span class="badge bg-warning text-dark" style="font-size:.65rem;">{{ task.status }}</span>
+                {% elif task.status == 'In Progress' %}
+                <span class="badge bg-info text-dark" style="font-size:.65rem;">{{ task.status }}</span>
+                {% elif task.status == 'Closed' %}
+                <span class="badge bg-secondary" style="font-size:.65rem;">{{ task.status }}</span>
+                {% elif task.status == 'Assigned' %}
+                <span class="badge bg-primary" style="font-size:.65rem;">{{ task.status }}</span>
+                {% elif task.status == 'Completed' %}
+                <span class="badge bg-success" style="font-size:.65rem;">{{ task.status }}</span>
+                {% else %}
+                <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ task.status }}</span>
+                {% endif %}
+                {% if task.priority == 'High' %}
+                <span class="badge bg-danger" style="font-size:.65rem;">High</span>
+                {% elif task.priority == 'Medium' %}
+                <span class="badge bg-warning text-dark" style="font-size:.65rem;">Medium</span>
+                {% else %}
+                <span class="badge bg-success" style="font-size:.65rem;">Low</span>
+                {% endif %}
+                <span class="badge bg-light text-dark border" style="font-size:.65rem;">{{ task.task_type }}</span>
+                {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted" style="font-size:.7rem;" title="Has attachments"></i>{% endif %}
+            </div>
+            <div class="text-truncate text-muted small mb-1" style="max-width:600px;" title="{{ task.email_subject }}">{{ task.email_subject }}</div>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="text-muted small"><i class="fa fa-envelope me-1"></i>{{ task.email_from }}</span>
+                {% if task.assign_to %}
+                <span class="text-muted small"><i class="fa fa-user me-1"></i>{{ task.assign_to.name }}</span>
+                {% else %}
+                <span class="text-muted small fst-italic">Unassigned</span>
+                {% endif %}
+                <span class="text-muted small"><i class="fa fa-clock me-1"></i>{{ task.updated_at|date:"d M Y, H:i" }}</span>
+            </div>
         </div>
-        <div class="text-truncate small text-muted" style="max-width:500px; margin-top:.15rem;">
-            {{ task.email_subject }} <span class="text-muted">— {{ task.email_from }}</span>
+        <div class="flex-shrink-0 d-flex align-items-center gap-1">
+            <a href="/tasks/{{ task.id }}/" class="btn btn-sm btn-outline-secondary py-0" title="View"><i class="fa fa-eye"></i></a>
+            <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0" title="Edit"><i class="fa fa-pen"></i></a>
+            <button class="btn btn-sm btn-outline-danger py-0" title="Delete"
+                    hx-post="/tasks/{{ task.id }}/delete/"
+                    hx-confirm="Delete task {{ task.job_id }}?"
+                    hx-target="#task-row-{{ task.id }}"
+                    hx-swap="outerHTML swap:0.3s"
+                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'><i class="fa fa-trash"></i></button>
         </div>
-    </div>
-    <div class="flex-shrink-0 d-flex gap-1">
-        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0" style="font-size:.7rem; padding:.15rem .4rem;">Edit</a>
-        <button class="btn btn-xs btn-outline-danger py-0"
-                hx-post="/tasks/{{ task.id }}/delete/"
-                hx-confirm="Delete task {{ task.job_id }}?"
-                hx-target="#task-row-{{ task.id }}"
-                hx-swap="outerHTML swap:0.3s"
-                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                style="font-size:.7rem; padding:.15rem .4rem;">Del</button>
     </div>
 </div>
 {% empty %}
-<div class="text-center text-muted py-3 small">No tasks found</div>
+<div class="text-center text-muted py-4">
+    <i class="fa fa-inbox fa-2x mb-2 d-block"></i>
+    <p class="mb-1">No tasks found</p>
+    <small>Try clearing the filters or adjust your search</small>
+</div>
 {% endfor %}
