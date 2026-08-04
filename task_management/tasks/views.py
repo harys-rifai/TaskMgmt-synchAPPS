@@ -13,7 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.core.mail import EmailMessage
 from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
 from datetime import datetime, timedelta
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F, Avg
 from django.db import IntegrityError
 from django.conf import settings
 from django.core.cache import cache
@@ -58,6 +58,7 @@ STATUS_CHOICES = [
     'Pending Vendor', 'Completed', 'Closed', 'Rejected', 'Cancelled',
 ]
 PRIORITY_CHOICES = ['High', 'Medium', 'Low']
+SLA_HOURS = 48
 
 
 def _invalidate_task_caches():
@@ -558,6 +559,7 @@ def task_create_page(request):
     next_job_id = Task.get_next_job_id()
     return render(request, 'tasks/task_create.html', {
         'teams':            teams,
+        'task_types':       _get_task_types(),
         'status_choices':   STATUS_CHOICES,
         'priority_choices': PRIORITY_CHOICES,
         'errors':           errors,
@@ -685,6 +687,7 @@ def task_edit_page(request, pk):
     return render(request, 'tasks/task_edit.html', {
         'task':             task,
         'teams':            teams,
+        'task_types':       _get_task_types(),
         'status_choices':   STATUS_CHOICES,
         'priority_choices': PRIORITY_CHOICES,
         'errors':           errors,
@@ -822,6 +825,40 @@ def assignment_page(request):
 # Template views — Reports
 # ---------------------------------------------------------------------------
 
+def _calc_avg_resolution():
+    closed_qs = Task.objects.filter(status='Closed', closed_at__isnull=False, created_at__isnull=False)
+    if not closed_qs.exists():
+        return '—'
+    avg_duration = closed_qs.aggregate(
+        avg_dur=Avg(F('closed_at') - F('created_at'))
+    )['avg_dur']
+    if avg_duration is None:
+        return '—'
+    total_seconds = avg_duration.total_seconds()
+    days = int(total_seconds // 86400)
+    hours = int((total_seconds % 86400) // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    if days > 0:
+        return f'{days}d {hours}h'
+    elif hours > 0:
+        return f'{hours}h {minutes}m'
+    return f'{minutes}m'
+
+
+def _calc_sla_compliance(month_start):
+    closed_qs = Task.objects.filter(
+        status='Closed', closed_at__isnull=False,
+        created_at__isnull=False, closed_at__gte=month_start,
+    )
+    total = closed_qs.count()
+    if total == 0:
+        return 0
+    sla_met = closed_qs.filter(
+        closed_at__lte=F('created_at') + timedelta(hours=SLA_HOURS)
+    ).count()
+    return round(sla_met / total * 100)
+
+
 @login_required
 def reports_page(request):
     cached = cache.get(CACHE_REPORTS)
@@ -892,14 +929,14 @@ def reports_page(request):
         'closed_today':     Task.objects.filter(status='Closed', closed_at__gte=today_start).count(),
         'overdue':          Task.objects.filter(
                                 status__in=['Open', 'Assigned', 'In Progress'],
-                                created_at__lt=now - timedelta(days=7),
+                                created_at__lt=today_start - timedelta(days=7),
                             ).count(),
         'weekly_created':   Task.objects.filter(created_at__gte=week_start).count(),
         'weekly_closed':    Task.objects.filter(status='Closed', closed_at__gte=week_start).count(),
-        'avg_resolution':   '—',
+        'avg_resolution':   _calc_avg_resolution(),
         'monthly_created':  Task.objects.filter(created_at__gte=month_start).count(),
         'monthly_closed':   Task.objects.filter(status='Closed', closed_at__gte=month_start).count(),
-        'sla_compliance':   0,
+        'sla_compliance':   _calc_sla_compliance(month_start),
         'trend':            trend,
         'weekly_trend':     json.dumps(weekly_trend),
         'monthly_trend':    json.dumps(monthly_trend),
