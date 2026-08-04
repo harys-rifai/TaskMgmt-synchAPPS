@@ -1,0 +1,140 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Backup — Task Management{% endblock %}
+{% block nav_backup %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-heading">
+        <i class="fa fa-database me-2 text-primary"></i>Database Backup
+    </h1>
+</div>
+
+{% if message %}
+<div class="alert alert-{{ message_type }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <!-- PostgreSQL Backup -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-server me-2 text-secondary"></i>PostgreSQL Backup
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Backup PostgreSQL databases using <code>pg_dump</code>. Backup files will be saved to <code>C:\www\n8n\backup\</code>.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="backup_postgres">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Database</label>
+                        <select name="db_name" class="form-select form-select-sm">
+                            <option value="taskdb">taskdb</option>
+                            <option value="n8n">n8n</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Host</label>
+                            <input type="text" name="db_host" value="localhost" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small fw-semibold">Port</label>
+                            <input type="text" name="db_port" value="5008" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small fw-semibold">User</label>
+                            <input type="text" name="db_user" value="postgres" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fa fa-download me-1"></i>Backup PostgreSQL
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Redis Backup -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold py-2">
+                <i class="fa fa-memory me-2 text-secondary"></i>Redis Backup
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Trigger a Redis background save (BGSAVE). The dump will be created in Redis data directory.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="backup_redis">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Redis URL</label>
+                        <input type="text" name="redis_url" value="redis://localhost:6379/0" class="form-control form-control-sm">
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="fa fa-download me-1"></i>Backup Redis
+                    </button>
+                </form>
+                <div class="alert alert-warning py-2 mt-3 mb-0 small">
+                    <i class="fa fa-triangle-exclamation me-1"></i>
+                    For Redis Cloud, BGSAVE is executed on the remote server. Check your Redis provider dashboard for the RDB file.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup Files -->
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="fa fa-folder-open me-2 text-secondary"></i>Backup Files
+                </span>
+                <span class="badge bg-secondary">{{ backups|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Filename</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in backups %}
+                            <tr>
+                                <td class="small">{{ b.name }}</td>
+                                <td class="small">{{ b.size|filesizeformat }}</td>
+                                <td class="small">{{ b.modified|date:"d M Y, H:i" }}</td>
+                                <td class="text-end">
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="download">
+                                        <input type="hidden" name="filename" value="{{ b.name }}">
+                                        <button type="submit" class="btn btn-xs btn-outline-primary py-0" style="font-size:.7rem; padding:.15rem .4rem;">
+                                            <i class="fa fa-download me-1"></i>Download
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4 small">No backups yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -18,6 +18,10 @@ from django.db import IntegrityError
 from django.core.cache import cache
 import json
 import requests
+import subprocess
+import os
+import shutil
+from pathlib import Path
 from redis import Redis
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib3.exceptions import InsecureRequestWarning
@@ -430,7 +434,9 @@ def _render_list(request, qs, search, status, priority, task_type):
 
 @login_required
 def _render_board(request, qs, search, status, priority, task_type):
-    tasks = list(qs.order_by('-created_at'))
+    # prefetch_related eliminates N+1 from task.attachments.exists in the template.
+    # Cap at 200 per board render — beyond that the kanban is unusable anyway.
+    tasks = list(qs.select_related('assign_to').prefetch_related('attachments').order_by('-created_at')[:200])
     status_groups = []
     for s in STATUS_CHOICES:
         status_groups.append((s, [t for t in tasks if t.status == s]))
@@ -1461,12 +1467,21 @@ def n8n_webhook(request):
     """Receive data from n8n workflows and sync to task database."""
     try:
         data = json.loads(request.body)
-        source = data.get('source', 'n8n')
-        items = data.get('items', [])
-        
-        if not isinstance(items, list) or not items:
+
+        if isinstance(data, list):
+            items = data
+            source = 'n8n'
+        elif isinstance(data, dict):
+            source = data.get('source', 'n8n')
+            items = data.get('items', [])
+            if not isinstance(items, list):
+                items = [items]
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid payload format'}, status=400)
+
+        if not items:
             return JsonResponse({'status': 'error', 'message': 'items must be a non-empty array'}, status=400)
-        
+
         created = 0
         updated = 0
         skipped = 0
@@ -1487,6 +1502,7 @@ def n8n_webhook(request):
             url = item.get('url', '')
             raw = item.get('raw', {})
             task_type = item.get('task_type', source.title())
+            email_from = item.get('email_from', '')
 
             job_id = item.get('job_id') or f'{source}-{external_id}'
 
@@ -1504,7 +1520,7 @@ def n8n_webhook(request):
                     external_id=external_id,
                     defaults={
                         'job_id': job_id,
-                        'email_from': item.get('email_from', ''),
+                        'email_from': email_from,
                         'email_subject': title,
                         'task_type': task_type,
                         'task_detail': description,
@@ -1655,6 +1671,104 @@ def action_network_webhook(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Backup page
+# ---------------------------------------------------------------------------
+
+BACKUP_ROOT = Path('C:/www/n8n/backup')
+
+
+@login_required
+def backup_page(request):
+    BACKUP_ROOT.mkdir(parents=True, exist_ok=True)
+
+    message = ''
+    message_type = 'info'
+    backups = []
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'backup_postgres':
+            db_name = request.POST.get('db_name', 'taskdb')
+            db_host = request.POST.get('db_host', 'localhost')
+            db_port = request.POST.get('db_port', '5008')
+            db_user = request.POST.get('db_user', 'postgres')
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = BACKUP_ROOT / f'postgres_{db_name}_{timestamp}.sql'
+
+            pg_dump_path = shutil.which('pg_dump')
+            if not pg_dump_path:
+                pg_dump_path = r'C:\Program Files\PostgreSQL\18\bin\pg_dump.exe'
+
+            try:
+                env = os.environ.copy()
+                env['PGPASSWORD'] = settings.DATABASES['default']['PASSWORD']
+                result = subprocess.run(
+                    [pg_dump_path, '-h', db_host, '-p', db_port, '-U', db_user, '-d', db_name, '-f', str(backup_file)],
+                    capture_output=True, text=True, env=env, timeout=300
+                )
+                if result.returncode == 0:
+                    message = f'PostgreSQL backup successful: {backup_file.name}'
+                    message_type = 'success'
+                else:
+                    message = f'pg_dump failed: {result.stderr}'
+                    message_type = 'danger'
+            except Exception as e:
+                message = f'Backup failed: {e}'
+                message_type = 'danger'
+
+        elif action == 'backup_redis':
+            redis_url = request.POST.get('redis_url', 'redis://localhost:6379/0')
+
+            try:
+                r = Redis.from_url(redis_url, socket_connect_timeout=5, socket_timeout=5)
+                r.ping()
+
+                try:
+                    r.bgsave()
+                    message = (
+                        'Redis BGSAVE triggered. The RDB file is created on the Redis server itself. '
+                        'For Redis Cloud, download the RDB from your Redis Cloud provider dashboard. '
+                        'For local Redis, the file is in the Redis data directory (dump.rdb).'
+                    )
+                    message_type = 'warning'
+                except Exception as e:
+                    message = (
+                        f'Redis backup notice: {e}. '
+                        'For Redis Cloud, download the RDB from your provider dashboard.'
+                    )
+                    message_type = 'warning'
+            except Exception as e:
+                message = f'Redis backup failed: {e}'
+                message_type = 'danger'
+
+        elif action == 'download':
+            filename = request.POST.get('filename', '')
+            filepath = BACKUP_ROOT / filename
+            if filepath.exists() and filepath.is_file():
+                with open(filepath, 'rb') as f:
+                    response = HttpResponse(f.read(), content_type='application/octet-stream')
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    return response
+            message = 'File not found.'
+            message_type = 'danger'
+
+    for f in sorted(BACKUP_ROOT.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
+        if f.is_file():
+            backups.append({
+                'name': f.name,
+                'size': f.stat().st_size,
+                'modified': datetime.fromtimestamp(f.stat().st_mtime),
+            })
+
+    return render(request, 'tasks/backup.html', {
+        'message': message,
+        'message_type': message_type,
+        'backups': backups,
+    })
 
 
 # ---------------------------------------------------------------------------

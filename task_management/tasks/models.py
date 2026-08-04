@@ -69,6 +69,7 @@ class Task(models.Model):
     email_subject = models.TextField()
     task_type = models.CharField(
         max_length=100,
+        db_index=True,                # filtered in task_list
     )
     task_detail = models.TextField()
     assign_to = models.ForeignKey(
@@ -79,6 +80,7 @@ class Task(models.Model):
     )
     priority = models.CharField(
         max_length=20,
+        db_index=True,                # filtered + counted frequently
     )
     note = models.TextField(
         blank=True,
@@ -87,9 +89,11 @@ class Task(models.Model):
     status = models.CharField(
         max_length=30,
         default='Open',
+        db_index=True,                # most-queried column (filter, count, board)
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
+        db_index=True,                # ORDER BY, overdue filter
     )
     updated_at = models.DateTimeField(
         auto_now=True,
@@ -97,6 +101,7 @@ class Task(models.Model):
     closed_at = models.DateTimeField(
         null=True,
         blank=True,
+        db_index=True,                # reports weekly/monthly closed counts
     )
     source       = models.CharField(max_length=20, blank=True, db_index=True)
     external_id  = models.CharField(max_length=255, blank=True, db_index=True)
@@ -104,6 +109,14 @@ class Task(models.Model):
     class Meta:
         db_table = 'tasks_task'
         ordering = ['-created_at']
+        indexes = [
+            # Composite index for the board view (status + created_at ORDER BY)
+            models.Index(fields=['status', '-created_at'], name='task_status_created_idx'),
+            # Composite for overdue query: status IN (...) + created_at < threshold
+            models.Index(fields=['status', 'created_at'],  name='task_status_created_asc_idx'),
+            # Composite for reports: status + closed_at range
+            models.Index(fields=['status', 'closed_at'],   name='task_status_closed_idx'),
+        ]
 
     def __str__(self):
         return f'{self.job_id} - {self.status}'

@@ -39,8 +39,15 @@ TEMPLATES = [
         'DIRS': [
             BASE_DIR / 'tasks' / 'templates',
         ],
-        'APP_DIRS': True,
+        # Use cached loader so templates are parsed once and reused
+        'APP_DIRS': False,
         'OPTIONS': {
+            'loaders': [
+                ('django.template.loaders.cached.Loader', [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                ]),
+            ],
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -82,8 +89,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Redis configuration — use environment variables or fallback to local
-# No DB queries or network pings during import — let django-redis handle connection errors gracefully
+# ---------------------------------------------------------------------------
+# Cache — Redis (Memurai) on localhost.
+# Timeouts are intentionally short (300ms) so that if Redis is down the app
+# degrades gracefully in <1s rather than blocking for multiple seconds.
+# IGNORE_EXCEPTIONS=True means a cache miss is returned instead of an error.
+# ---------------------------------------------------------------------------
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
 CACHES = {
@@ -91,13 +102,12 @@ CACHES = {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': REDIS_URL,
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 2,
-            'SOCKET_TIMEOUT': 2,
-            'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': 50,
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,  # Critical: fail gracefully if Redis is down
+            'CLIENT_CLASS':          'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 0.3,   # fail fast if Redis is down
+            'SOCKET_TIMEOUT':         0.3,   # don't wait more than 300ms per op
+            'RETRY_ON_TIMEOUT':       False, # one attempt only — no double wait
+            'MAX_CONNECTIONS':        20,
+            'IGNORE_EXCEPTIONS':      True,  # cache miss on any error, never crash
         },
         'KEY_PREFIX': 'taskmgmt',
         'TIMEOUT': 300,

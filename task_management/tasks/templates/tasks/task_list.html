@@ -388,202 +388,302 @@
 </div>
 
 <script>
-function getSyncItems() {
-    const el = document.getElementById('sync-items');
-    if (!el) return '';
-    return (el.value || '').trim();
-}
+(function () {
+    'use strict';
 
-function renderSyncPreview() {
-    const itemsStr = getSyncItems();
-    const previewDiv = document.getElementById('sync-preview');
-
-    if (!itemsStr) {
-        previewDiv.innerHTML = '<div class="alert alert-warning py-2">Please paste JSON first.</div>';
-        return;
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function parseItems(str) {
+        const trimmed = (str || '').trim();
+        if (!trimmed) return { ok: false, error: 'Paste a JSON array of items first.' };
+        let arr;
+        try { arr = JSON.parse(trimmed); } catch (e) { return { ok: false, error: 'Invalid JSON: ' + e.message }; }
+        if (!Array.isArray(arr)) return { ok: false, error: 'JSON must be an array [ … ].' };
+        if (!arr.length)         return { ok: false, error: 'Array is empty.' };
+        const bad = arr.filter(i => !i.external_id || !i.title);
+        if (bad.length) return { ok: false, error: bad.length + ' item(s) missing external_id or title.' };
+        return { ok: true, items: arr };
     }
 
-    let items;
-    try { items = JSON.parse(itemsStr); } catch(e) {
-        previewDiv.innerHTML = '<div class="alert alert-danger py-2">Invalid JSON: ' + e.message + '</div>';
-        return;
-    }
-
-    if (!Array.isArray(items)) {
-        previewDiv.innerHTML = '<div class="alert alert-danger py-2">JSON must be an array of items.</div>';
-        return;
-    }
-
-    if (items.length === 0) {
-        previewDiv.innerHTML = '<div class="alert alert-warning py-2">Array is empty.</div>';
-        return;
-    }
-
-    const missing = items.filter(i => !i.external_id || !i.title);
-    if (missing.length) {
-        previewDiv.innerHTML = '<div class="alert alert-danger py-2">Each item must have external_id and title. ' + missing.length + ' item(s) missing fields.</div>';
-        return;
-    }
-
-    let html = '<div class="alert alert-success py-2"><strong>Parsed ' + items.length + ' item(s)</strong></div>';
-    html += '<ul class="list-unstyled small mb-0">';
-    items.slice(0, 5).forEach(function(it) {
-        html += '<li><strong>' + it.external_id + '</strong> — ' + it.title + ' <span class="text-muted">(' + (it.status || 'Open') + ', ' + (it.priority || 'Medium') + ')</span></li>';
-    });
-    if (items.length > 5) {
-        html += '<li class="text-muted">... and ' + (items.length - 5) + ' more</li>';
-    }
-    html += '</ul>';
-    previewDiv.innerHTML = html;
-}
-
-document.getElementById('sync-parse-btn').addEventListener('click', function() {
-    renderSyncPreview();
-});
-
-document.getElementById('sync-items').addEventListener('input', function() {
-    const itemsStr = (this.value || '').trim();
-    if (itemsStr) {
-        renderSyncPreview();
-    }
-});
-
-document.getElementById('sync-submit-btn').addEventListener('click', function() {
-    const source = document.getElementById('sync-source').value;
-    const itemsStr = getSyncItems();
-    const resultDiv = document.getElementById('sync-result');
-
-    if (!source) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please select a source.</div>'; return; }
-    if (!itemsStr) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please enter items JSON.</div>'; return; }
-
-    let items;
-    try { items = JSON.parse(itemsStr); } catch(e) { resultDiv.innerHTML = '<div class="alert alert-danger py-2">Invalid JSON: ' + e.message + '</div>'; return; }
-
-    const btn = document.getElementById('sync-submit-btn');
-    btn.disabled = true;
-    resultDiv.innerHTML = '<div class="alert alert-info py-2"><i class="fa fa-spinner fa-spin me-1"></i>Syncing...</div>';
-
-    fetch("/task-api/tasks/sync/", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify({ source: source, items: items }),
-    })
-    .then(r => r.json())
-    .then(data => {
-        let html = '<div class="alert alert-success py-2"><strong>Sync complete</strong><br>';
-        html += 'Created: ' + data.created + ' | Updated: ' + data.updated + ' | Skipped: ' + data.skipped;
-        if (data.errors && data.errors.length) {
-            html += '<br><small class="text-danger">Errors: ' + data.errors.map(e => e.external_id + ' (' + e.error + ')').join(', ') + '</small>';
+    function showPreview(result) {
+        const div = document.getElementById('sync-preview');
+        if (!div) return;
+        if (!result.ok) {
+            div.innerHTML = '<div class="alert alert-warning py-2 mb-0">' + result.error + '</div>';
+            return;
         }
-        html += '</div>';
-        resultDiv.innerHTML = html;
-    })
-    .catch(err => {
-        resultDiv.innerHTML = '<div class="alert alert-danger py-2">Request failed: ' + err.message + '</div>';
-    })
-    .finally(() => { btn.disabled = false; });
-});
+        const items = result.items;
+        let html = '<div class="alert alert-success py-2 mb-1"><strong>' + items.length + ' item(s) ready to sync</strong></div>';
+        html += '<ul class="list-unstyled small mb-0">';
+        items.slice(0, 5).forEach(function (it) {
+            html += '<li><span class="text-muted me-1">' + _esc(it.external_id) + '</span>'
+                  + '<strong>' + _esc(it.title) + '</strong>'
+                  + ' <span class="badge bg-secondary" style="font-size:.65rem;">' + _esc(it.status || 'Open') + '</span>'
+                  + ' <span class="badge bg-warning text-dark" style="font-size:.65rem;">' + _esc(it.priority || 'Medium') + '</span>'
+                  + '</li>';
+        });
+        if (items.length > 5) html += '<li class="text-muted">… and ' + (items.length - 5) + ' more</li>';
+        html += '</ul>';
+        div.innerHTML = html;
+    }
+
+    function _esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── wire up modal ─────────────────────────────────────────────────────────
+    const modalEl = document.getElementById('syncModal');
+    if (modalEl) {
+        modalEl.addEventListener('show.bs.modal', function () {
+            // Clear previous state every time the modal opens
+            document.getElementById('sync-preview').innerHTML = '';
+            document.getElementById('sync-result').innerHTML  = '';
+            const ta = document.getElementById('sync-items');
+            if (ta && !ta.value.trim()) {
+                // Leave placeholder — do not clear if user already typed something
+            }
+        });
+    }
+
+    // ── Parse / Preview button ────────────────────────────────────────────────
+    const parseBtn = document.getElementById('sync-parse-btn');
+    if (parseBtn) {
+        parseBtn.addEventListener('click', function () {
+            const val = document.getElementById('sync-items').value;
+            showPreview(parseItems(val));
+        });
+    }
+
+    // ── Live parse as user types ──────────────────────────────────────────────
+    const textarea = document.getElementById('sync-items');
+    if (textarea) {
+        textarea.addEventListener('input', function () {
+            if (this.value.trim()) showPreview(parseItems(this.value));
+            else document.getElementById('sync-preview').innerHTML = '';
+        });
+    }
+
+    // ── Sync Now button ───────────────────────────────────────────────────────
+    const submitBtn = document.getElementById('sync-submit-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function () {
+            const resultDiv = document.getElementById('sync-result');
+            const source    = document.getElementById('sync-source').value;
+
+            if (!source) {
+                resultDiv.innerHTML = '<div class="alert alert-danger py-2">Please select a source.</div>';
+                return;
+            }
+
+            const parsed = parseItems(document.getElementById('sync-items').value);
+            if (!parsed.ok) {
+                showPreview(parsed);
+                resultDiv.innerHTML = '<div class="alert alert-danger py-2">' + parsed.error + '</div>';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            resultDiv.innerHTML = '<div class="alert alert-info py-2"><i class="fa fa-spinner fa-spin me-1"></i>Syncing ' + parsed.items.length + ' item(s)…</div>';
+
+            fetch('/task-api/tasks/sync/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ source: source, items: parsed.items }),
+            })
+            .then(function (r) {
+                if (!r.ok && r.status !== 200) {
+                    return r.json().then(function (e) { throw new Error(JSON.stringify(e)); });
+                }
+                return r.json();
+            })
+            .then(function (data) {
+                let cls = (data.skipped > 0 && data.created === 0 && data.updated === 0) ? 'alert-warning' : 'alert-success';
+                let html = '<div class="alert ' + cls + ' py-2">'
+                    + '<strong>Sync complete</strong><br>'
+                    + 'Created: <strong>' + data.created + '</strong> &nbsp;'
+                    + 'Updated: <strong>' + data.updated + '</strong> &nbsp;'
+                    + 'Skipped: <strong>' + data.skipped + '</strong>';
+                if (data.errors && data.errors.length) {
+                    html += '<hr class="my-1"><small class="text-danger">'
+                        + data.errors.map(function (e) { return _esc(e.external_id) + ': ' + _esc(e.error); }).join('<br>')
+                        + '</small>';
+                }
+                html += '</div>';
+                resultDiv.innerHTML = html;
+                // Clear the form on full success
+                if (!data.errors || !data.errors.length) {
+                    document.getElementById('sync-items').value = '';
+                    document.getElementById('sync-preview').innerHTML = '';
+                }
+            })
+            .catch(function (err) {
+                resultDiv.innerHTML = '<div class="alert alert-danger py-2">Request failed: ' + _esc(err.message) + '</div>';
+            })
+            .finally(function () { submitBtn.disabled = false; });
+        });
+    }
+})();
 </script>
 
 {% if view_mode == 'board' %}
 <script>
-(function() {
+(function () {
+    'use strict';
+
     const container = document.getElementById('task-board-container');
     if (!container) return;
 
-    let draggedEl = null;
+    let draggedEl  = null;
+    let originCol  = null;   // column the card came from
+    let originNext = null;   // sibling it came before (for rollback)
 
-    container.addEventListener('dragstart', function(e) {
-        const task = e.target.closest('.draggable-task');
-        if (!task) return;
-        draggedEl = task;
+    // ── drag start ──────────────────────────────────────────────────────────
+    container.addEventListener('dragstart', function (e) {
+        const card = e.target.closest('.draggable-task');
+        if (!card) return;
+        draggedEl  = card;
+        originCol  = card.closest('.board-column');
+        originNext = card.nextElementSibling;
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', task.dataset.taskId);
-        task.setAttribute('data-original-bg', task.style.background);
-        task.style.opacity = '0.4';
+        e.dataTransfer.setData('text/plain', card.dataset.taskId);
+        // Defer opacity so the ghost image renders full-opacity first
+        requestAnimationFrame(() => { card.style.opacity = '0.4'; });
     });
 
-    container.addEventListener('dragend', function(e) {
-        const task = e.target.closest('.draggable-task');
-        if (task) {
-            task.style.opacity = '1';
-            const originalBg = task.getAttribute('data-original-bg');
-            if (originalBg) task.style.background = originalBg;
-        }
-        draggedEl = null;
-        container.querySelectorAll('.board-column').forEach(function(col) {
+    // ── drag end ─────────────────────────────────────────────────────────────
+    container.addEventListener('dragend', function () {
+        if (draggedEl) draggedEl.style.opacity = '1';
+        container.querySelectorAll('.board-column').forEach(col => {
             col.classList.remove('drag-over');
-            const originalBg = col.getAttribute('data-original-bg');
-            if (originalBg) col.style.background = originalBg;
         });
+        draggedEl = originCol = originNext = null;
     });
 
-    container.addEventListener('dragover', function(e) {
+    // ── drag over (must prevent default to allow drop) ───────────────────────
+    container.addEventListener('dragover', function (e) {
         e.preventDefault();
-        const column = e.target.closest('.board-column');
-        if (!column) return;
         e.dataTransfer.dropEffect = 'move';
-        if (!column.hasAttribute('data-original-bg')) {
-            column.setAttribute('data-original-bg', column.style.background);
-        }
-        column.style.background = '#e3f2fd';
-        column.classList.add('drag-over');
+        const col = e.target.closest('.board-column');
+        if (col) col.classList.add('drag-over');
     });
 
-    container.addEventListener('dragleave', function(e) {
-        const column = e.target.closest('.board-column');
-        if (!column) return;
-        const originalBg = column.getAttribute('data-original-bg');
-        if (originalBg) {
-            column.style.background = originalBg;
+    container.addEventListener('dragleave', function (e) {
+        const col = e.target.closest('.board-column');
+        if (col && !col.contains(e.relatedTarget)) {
+            col.classList.remove('drag-over');
         }
-        column.classList.remove('drag-over');
     });
 
-    container.addEventListener('drop', function(e) {
+    // ── drop ─────────────────────────────────────────────────────────────────
+    container.addEventListener('drop', function (e) {
         e.preventDefault();
-        const column = e.target.closest('.board-column');
-        if (!column || !draggedEl) return;
-        column.style.background = '';
+        const col = e.target.closest('.board-column');
+        col && col.classList.remove('drag-over');
 
-        const taskId = draggedEl.dataset.taskId;
-        const newStatus = column.dataset.status;
+        if (!col || !draggedEl) return;
+
+        const taskId   = draggedEl.dataset.taskId;
+        const newStatus = col.dataset.status;
         const oldStatus = draggedEl.dataset.taskStatus;
 
-        if (oldStatus === newStatus) return;
+        if (oldStatus === newStatus) return;  // same column — nothing to do
 
-        const csrfToken = '{{ csrf_token }}';
+        // ── 1. Move card instantly in the DOM (instant feedback) ──────────────
+        const listGroup = col.querySelector('.list-group');
+        const emptyNote = col.querySelector('.text-center.text-muted');
+
+        if (emptyNote) {
+            // Column was empty — replace empty state with a list-group
+            emptyNote.remove();
+            const lg = document.createElement('div');
+            lg.className = 'list-group list-group-flush';
+            lg.appendChild(draggedEl);
+            col.appendChild(lg);
+        } else if (listGroup) {
+            listGroup.appendChild(draggedEl);
+        } else {
+            col.appendChild(draggedEl);
+        }
+        draggedEl.dataset.taskStatus = newStatus;
+
+        // Update source column badge count
+        _updateColBadge(originCol, -1);
+        _updateColBadge(col, +1);
+
+        // Show a subtle saving indicator on the card
+        const saving = document.createElement('span');
+        saving.className = 'badge bg-warning text-dark ms-1 saving-indicator';
+        saving.style.fontSize = '.6rem';
+        saving.textContent = 'saving…';
+        draggedEl.querySelector('a')?.after(saving);
+
+        // ── 2. Persist to server in the background ───────────────────────────
         const formData = new FormData();
         formData.append('status', newStatus);
 
-        fetch(`/tasks/${taskId}/board-move/`, {
+        fetch('/tasks/' + taskId + '/board-move/', {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken,
-            },
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
             body: formData,
             credentials: 'same-origin',
         })
-        .then(function(r) {
+        .then(function (r) {
+            saving.remove();
             if (r.status === 204) {
-                const params = new URLSearchParams(window.location.search);
-                params.set('view', 'board');
-                htmx.ajax('GET', `${window.location.pathname}?${params.toString()}`, {
-                    target: '#task-board-container',
-                    swap: 'innerHTML',
-                    push: false,
-                });
+                // Success — nothing else needed, card is already in place
             } else {
-                console.error('Move failed with status', r.status);
+                // Server rejected — roll back the DOM move
+                _rollback();
+                _showBoardError('Server returned ' + r.status + '. Move not saved.');
             }
         })
-        .catch(function(err) {
-            console.error('Move failed:', err);
+        .catch(function (err) {
+            saving.remove();
+            _rollback();
+            _showBoardError('Network error: ' + err.message);
         });
+
+        // Store rollback context before dragend clears it
+        const _origCol  = originCol;
+        const _origNext = originNext;
+
+        function _rollback() {
+            if (!draggedEl) return;
+            if (_origNext) {
+                _origCol.insertBefore(draggedEl, _origNext);
+            } else {
+                const lg = _origCol.querySelector('.list-group');
+                lg ? lg.appendChild(draggedEl) : _origCol.appendChild(draggedEl);
+            }
+            draggedEl.dataset.taskStatus = oldStatus;
+            _updateColBadge(_origCol, +1);
+            _updateColBadge(col, -1);
+        }
     });
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function _updateColBadge(col, delta) {
+        if (!col) return;
+        const badge = col.closest('.card')?.querySelector('.card-header .badge');
+        if (badge) {
+            const n = parseInt(badge.textContent || '0', 10) + delta;
+            badge.textContent = Math.max(0, n);
+        }
+    }
+
+    function _showBoardError(msg) {
+        let err = document.getElementById('board-move-error');
+        if (!err) {
+            err = document.createElement('div');
+            err.id = 'board-move-error';
+            err.className = 'alert alert-danger alert-dismissible py-2 mb-2';
+            err.innerHTML = '<button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>';
+            container.before(err);
+        }
+        err.childNodes[0].textContent = msg + ' ';
+    }
 })();
 </script>
 {% endif %}

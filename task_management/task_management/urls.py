@@ -59,6 +59,7 @@ urlpatterns = [
     path('assignment/',     v.assignment_page,      name='assignment'),
     path('reports/',        v.reports_page,         name='reports'),
     path('admin-page/',     v.admin_page,           name='admin-page'),
+    path('backup/',         v.backup_page,          name='backup'),
 
     # Email configuration
     path('admin-page/email/save/', v.email_config_save, name='email-config-save'),
