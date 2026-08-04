@@ -136,11 +136,12 @@
                             <div class="invalid-feedback d-block small">{{ row.errors.email_subject }}</div>
                             {% endif %}
                         </td>
-                        <td>
-                            <input type="text" name="row_{{ row.index }}__task_type"
-                                   value="{{ row.data.task_type|escape }}"
-                                   class="form-control form-control-sm {% if 'task_type' in row.errors %}is-invalid{% endif %}"
-                                   placeholder="General">
+                        <td style="min-width:130px;">
+                            <select name="row_{{ row.index }}__task_type" class="form-select form-select-sm {% if 'task_type' in row.errors %}is-invalid{% endif %}">
+                                {% for tt in task_types %}
+                                <option value="{{ tt }}" {% if row.data.task_type == tt %}selected{% endif %}>{{ tt }}</option>
+                                {% endfor %}
+                            </select>
                             {% if 'task_type' in row.errors %}
                             <div class="invalid-feedback d-block small">{{ row.errors.task_type }}</div>
                             {% endif %}

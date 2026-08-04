@@ -1,0 +1,89 @@
+<div class="modal-header">
+    <h5 class="modal-title"><i class="fa fa-ticket me-2 text-primary"></i>{{ task.job_id }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <span class="text-muted small">Requester</span>
+            <div class="fw-semibold">{{ task.email_from }}</div>
+        </div>
+        <div class="col-md-6">
+            <span class="text-muted small">Task Type</span>
+            <div class="fw-semibold">{{ task.task_type }}</div>
+        </div>
+        <div class="col-md-6">
+            <span class="text-muted small">Priority</span>
+            <div>
+                {% if task.priority == 'High' %}<span class="badge bg-danger">High</span>
+                {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark">Medium</span>
+                {% else %}<span class="badge bg-success">Low</span>{% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <span class="text-muted small">Status</span>
+            <div>
+                {% if task.status == 'Open' %}<span class="badge bg-warning text-dark">
+                {% elif task.status == 'In Progress' %}<span class="badge bg-info text-dark">
+                {% elif task.status == 'Closed' %}<span class="badge bg-secondary">
+                {% elif task.status == 'Assigned' %}<span class="badge bg-primary">
+                {% elif task.status == 'Completed' %}<span class="badge bg-success">
+                {% else %}<span class="badge bg-light text-dark border">
+                {% endif %}{{ task.status }}</span>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <span class="text-muted small">Assigned To</span>
+            <div class="fw-semibold">{{ task.assign_to.name|default:"— Unassigned" }}</div>
+        </div>
+        <div class="col-md-6">
+            <span class="text-muted small">Created</span>
+            <div class="fw-semibold">{{ task.created_at|date:"d M Y, H:i" }}</div>
+        </div>
+        {% if task.closed_at %}
+        <div class="col-md-6">
+            <span class="text-muted small">Closed</span>
+            <div class="fw-semibold">{{ task.closed_at|date:"d M Y, H:i" }}</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="mb-3">
+        <span class="text-muted small">Subject</span>
+        <div class="fw-semibold">{{ task.email_subject }}</div>
+    </div>
+    <div class="mb-3">
+        <span class="text-muted small">Task Detail</span>
+        <p class="mb-0" style="white-space:pre-wrap; background:#f8f9fa; padding:10px; border-radius:6px;">{{ task.task_detail }}</p>
+    </div>
+    {% if task.note %}
+    <div class="mb-3">
+        <span class="text-muted small">Notes</span>
+        <p class="mb-0" style="white-space:pre-wrap;">{{ task.note }}</p>
+    </div>
+    {% endif %}
+    {% if task.attachments.all %}
+    <div class="mb-3">
+        <span class="text-muted small">Attachments</span>
+        <div class="list-group mt-1">
+            {% for att in task.attachments.all %}
+            <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                <div class="d-flex align-items-center gap-2">
+                    {% if att.content_type|slice:"0:5" == "image" %}
+                    <img src="{{ att.file.url }}" alt="" style="height:36px; width:auto; object-fit:cover; border-radius:4px;">
+                    {% else %}
+                    <i class="fa fa-file-lines text-secondary"></i>
+                    {% endif %}
+                    <a href="{{ att.file.url }}" target="_blank" class="text-decoration-none small">{{ att.filename }}</a>
+                </div>
+                <small class="text-muted">{{ att.uploaded_at|date:"d M Y, H:i" }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+<div class="modal-footer">
+    <a href="/tasks/{{ task.id }}/" class="btn btn-sm btn-outline-secondary">View Full Page</a>
+    <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-primary">Edit</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+</div>

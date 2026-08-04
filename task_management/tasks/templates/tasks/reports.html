@@ -144,15 +144,13 @@
                     </td>
                     <td class="text-center">{{ row.open }}</td>
                     <td>
-                        {% with net=row.created|add:"-"|add:row.closed %}
-                        {% if row.created > row.closed %}
-                        <span class="text-danger small">+{{ row.created }}</span>
-                        {% elif row.closed > row.created %}
-                        <span class="text-success small">-{{ row.closed }}</span>
+                        {% if row.net > 0 %}
+                        <span class="text-danger small">+{{ row.net }}</span>
+                        {% elif row.net < 0 %}
+                        <span class="text-success small">{{ row.net }}</span>
                         {% else %}
                         <span class="text-muted small">—</span>
                         {% endif %}
-                        {% endwith %}
                     </td>
                 </tr>
                 {% empty %}

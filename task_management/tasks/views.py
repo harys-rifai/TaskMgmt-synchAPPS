@@ -327,7 +327,7 @@ VIEW_MODE_CARD = 'card'
 def _get_task_types():
     tt = cache.get(CACHE_TASK_TYPES)
     if tt is None:
-        tt = list(Task.objects.values_list('task_type', flat=True).distinct().order_by('task_type'))
+        tt = list(AssignmentRule.objects.values_list('keyword', flat=True).order_by('keyword'))
         cache.set(CACHE_TASK_TYPES, tt, TTL_REPORTS)
     return tt
 
@@ -783,6 +783,17 @@ def task_do_assign(request, pk):
     return redirect('assignment')
 
 
+@login_required
+def task_view_modal(request, pk):
+    """Return the task detail view HTML for the modal."""
+    task = get_object_or_404(Task.objects.select_related('assign_to'), pk=pk)
+    teams = Team.objects.filter(is_active=True)
+    return render(request, 'tasks/partials/task_view_modal.html', {
+        'task': task, 'teams': teams,
+        'status_choices': STATUS_CHOICES,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Template views — Assignment
 # ---------------------------------------------------------------------------
@@ -819,7 +830,7 @@ def reports_page(request):
 
     now         = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start  = today_start - timedelta(days=today_start.weekday())
+    week_start  = today_start - timedelta(days=7)
     month_start = today_start.replace(day=1)
 
     # 7-day trend (weekly)
@@ -865,12 +876,14 @@ def reports_page(request):
     for i in range(6, -1, -1):
         day_start = today_start - timedelta(days=i)
         day_end   = day_start + timedelta(days=1)
+        created_count = Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count()
+        closed_count = Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count()
         trend.append({
             'date':    day_start,
-            'created': Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
-            'closed':  Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count(),
-            'open':    Task.objects.filter(created_at__lt=day_end)
-                                   .exclude(status__in=['Closed', 'Cancelled', 'Rejected']).count(),
+            'created': created_count,
+            'closed':  closed_count,
+            'open':    Task.objects.filter(status='Open', created_at__lt=day_end).count(),
+            'net':     created_count - closed_count,
         })
 
     report = {
@@ -2055,6 +2068,7 @@ def task_import_page(request):
         'teams': Team.objects.filter(is_active=True),
         'status_choices': STATUS_CHOICES,
         'priority_choices': PRIORITY_CHOICES,
+        'task_types': _get_task_types(),
     })
 
 

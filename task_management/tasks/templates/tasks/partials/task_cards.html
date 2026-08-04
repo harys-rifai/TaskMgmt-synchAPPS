@@ -12,7 +12,7 @@
                     {% elif task.priority == 'Medium' %}<span class="badge bg-warning text-dark" style="font-size:.55rem;">~</span>
                     {% else %}<span class="badge bg-success" style="font-size:.55rem;">-</span>{% endif %}
                 </div>
-                <h6 class="card-title text-truncate mb-1" title="{{ task.email_subject }}">{{ task.email_subject }}</h6>
+                <h6 class="card-title text-truncate mb-1" title="{{ task.task_detail|truncatechars:25 }}">{{ task.task_detail|truncatechars:25 }}</h6>
                 <p class="card-text small text-muted mb-1 text-truncate">{{ task.email_from }}</p>
                 <div class="d-flex flex-wrap gap-1 mb-1">
                     {% if task.status == 'Open' %}
@@ -38,8 +38,15 @@
                 {% endif %}
             </div>
             <div class="card-footer bg-white py-1 px-2 d-flex justify-content-end gap-1">
-                <a href="/tasks/{{ task.id }}/" class="btn btn-xs btn-outline-secondary py-0" title="View"><i class="fa fa-eye"></i></a>
-                <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0" title="Edit"><i class="fa fa-pen"></i></a>
+                <button class="btn btn-xs btn-outline-secondary py-0 me-1"
+                        hx-get="/tasks/{{ task.id }}/view-modal/"
+                        hx-target="#viewModal .modal-content"
+                        hx-swap="innerHTML"
+                        data-bs-toggle="modal" data-bs-target="#viewModal"
+                        title="View">
+                    <i class="fa fa-eye"></i>
+                </button>
+                <a href="/tasks/{{ task.id }}/edit/" class="btn btn-xs btn-outline-primary py-0 me-1" title="Edit"><i class="fa fa-pen"></i></a>
                 <button class="btn btn-xs btn-outline-danger py-0" title="Delete"
                         hx-post="/tasks/{{ task.id }}/delete/"
                         hx-confirm="Delete task {{ task.job_id }}?"

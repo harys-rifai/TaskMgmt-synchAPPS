@@ -2,7 +2,7 @@
 <tr id="task-row-{{ task.id }}">
     <td><a href="/tasks/{{ task.id }}/" class="fw-semibold text-decoration-none">{{ task.job_id }}</a></td>
     <td class="text-truncate" style="max-width:140px;">{{ task.email_from }}</td>
-    <td class="text-truncate" style="max-width:180px;">{{ task.email_subject }}</td>
+    <td class="text-truncate" style="max-width:180px;">{{ task.task_detail|truncatechars:25 }}</td>
     <td>{{ task.task_type }}</td>
     <td>
         {% if task.priority == 'High' %}
@@ -27,13 +27,23 @@
      <td class="text-nowrap">{{ task.updated_at|date:"d M H:i" }}</td>
     <td class="text-nowrap">
         {% if task.attachments.exists %}<i class="fa fa-paperclip text-muted me-1" title="Has attachments"></i>{% endif %}
-        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0">Edit</a>
+        <button class="btn btn-sm btn-outline-secondary py-0 me-1"
+                hx-get="/tasks/{{ task.id }}/view-modal/"
+                hx-target="#viewModal .modal-content"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal" data-bs-target="#viewModal"
+                title="View">
+            <i class="fa fa-eye"></i>
+        </button>
+        <a href="/tasks/{{ task.id }}/edit/" class="btn btn-sm btn-outline-primary py-0 me-1" title="Edit"><i class="fa fa-pen"></i></a>
         <button class="btn btn-sm btn-outline-danger py-0"
                 hx-post="/tasks/{{ task.id }}/delete/"
                 hx-confirm="Delete task {{ task.job_id }}?"
                 hx-target="#task-row-{{ task.id }}"
                 hx-swap="outerHTML swap:0.3s"
-                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>Del</button>
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <i class="fa fa-trash"></i>
+        </button>
     </td>
 </tr>
 {% empty %}

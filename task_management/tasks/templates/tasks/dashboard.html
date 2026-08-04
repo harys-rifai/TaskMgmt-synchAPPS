@@ -145,7 +145,7 @@
                             {{ task.job_id }}
                         </a>
                     </td>
-                    <td class="text-truncate" style="max-width:200px;">{{ task.email_subject }}</td>
+                    <td class="text-truncate" style="max-width:200px;">{{ task.task_detail|truncatechars:25 }}</td>
                     <td>{{ task.task_type }}</td>
                     <td>
                         {% if task.priority == 'High' %}

@@ -111,7 +111,7 @@
             <thead class="table-light">
                 <tr>
                     <th>Job ID</th>
-                    <th>From</th>
+                    <th>Requester</th>
                     <th>Subject</th>
                     <th>Type</th>
                     <th>Priority</th>
@@ -281,8 +281,8 @@
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">From Email <span class="text-danger">*</span></label>
-                            <input type="email" name="email_from" class="form-control" required>
+                            <label class="form-label fw-semibold">Requester <span class="text-danger">*</span></label>
+                            <input type="text" name="email_from" class="form-control" required>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
@@ -290,11 +290,11 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Task Type <span class="text-danger">*</span></label>
-                            <input type="text" name="task_type" class="form-control"
-                                   list="type-suggestions" required>
-                            <datalist id="type-suggestions">
-                                {% for tt in task_types %}<option value="{{ tt }}">{% endfor %}
-                            </datalist>
+                            <select name="task_type" class="form-select" required>
+                                {% for tt in task_types %}
+                                <option value="{{ tt }}">{{ tt }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Priority <span class="text-danger">*</span></label>
@@ -340,6 +340,17 @@
                 </div>
             </form>
             <div id="create-result" class="px-3 pb-3"></div>
+        </div>
+    </div>
+</div>
+
+<!-- View Task Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
+            </div>
         </div>
     </div>
 </div>
@@ -527,6 +538,36 @@
             })
             .finally(function () { submitBtn.disabled = false; });
         });
+    }
+})();
+</script>
+
+<script>
+(function () {
+    'use strict';
+    const viewModal = document.getElementById('viewModal');
+    if (viewModal) {
+        viewModal.addEventListener('show.bs.modal', function () {
+            const content = viewModal.querySelector('.modal-content');
+            if (content && !content.querySelector('input, select, textarea, a, button[data-bs-dismiss="modal"]')) {
+                content.innerHTML = '<div class="modal-body text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-muted"></i></div>';
+            }
+        });
+    }
+})();
+</script>
+
+<script>
+(function () {
+    'use strict';
+    const detailEl = document.querySelector('#createModal textarea[name="task_detail"]');
+    const subjectEl = document.querySelector('#createModal input[name="email_subject"]');
+    if (detailEl && subjectEl) {
+        function syncSubject() {
+            const val = (detailEl.value || '').trim();
+            subjectEl.value = val.length > 25 ? val.slice(0, 25) : val;
+        }
+        detailEl.addEventListener('input', syncSubject);
     }
 })();
 </script>

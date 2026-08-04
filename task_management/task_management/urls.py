@@ -52,6 +52,7 @@ urlpatterns = [
     path('tasks/<int:pk>/add-note/',      v.task_add_note,      name='task-add-note'),
     path('tasks/<int:pk>/delete/',        v.task_delete,        name='task-delete'),
     path('tasks/<int:pk>/assign/',        v.task_assign_form,   name='task-assign-form'),
+    path('tasks/<int:pk>/view-modal/',    v.task_view_modal,    name='task-view-modal'),
     path('tasks/<int:pk>/do-assign/',     v.task_do_assign,     name='task-do-assign'),
     path('tasks/<int:pk>/board-move/',    v.task_board_move,    name='task-board-move'),
     path('tasks/<int:pk>/attachments/<int:attachment_id>/delete/', v.task_attachment_delete, name='task-attachment-delete'),

@@ -65,7 +65,7 @@ class Task(models.Model):
         max_length=50,
         unique=True,
     )
-    email_from = models.EmailField()
+    email_from = models.CharField(max_length=254)
     email_subject = models.TextField()
     task_type = models.CharField(
         max_length=100,

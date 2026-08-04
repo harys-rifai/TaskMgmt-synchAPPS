@@ -23,8 +23,8 @@
                            value="{{ task.job_id }}" readonly>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label fw-semibold">From Email <span class="text-danger">*</span></label>
-                    <input type="email" name="email_from"
+                    <label class="form-label fw-semibold">Requester <span class="text-danger">*</span></label>
+                    <input type="text" name="email_from"
                            class="form-control {% if errors.email_from %}is-invalid{% endif %}"
                            value="{{ task.email_from }}" required>
                     {% if errors.email_from %}<div class="invalid-feedback">{{ errors.email_from }}</div>{% endif %}
@@ -38,9 +38,11 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Task Type <span class="text-danger">*</span></label>
-                    <input type="text" name="task_type"
-                           class="form-control {% if errors.task_type %}is-invalid{% endif %}"
-                           value="{{ task.task_type }}" required>
+                    <select name="task_type" class="form-select {% if errors.task_type %}is-invalid{% endif %}" required>
+                        {% for tt in task_types %}
+                        <option value="{{ tt }}" {% if task.task_type == tt %}selected{% endif %}>{{ tt }}</option>
+                        {% endfor %}
+                    </select>
                     {% if errors.task_type %}<div class="invalid-feedback">{{ errors.task_type }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
@@ -119,4 +121,19 @@
         </form>
     </div>
 </div>
+<script>
+(function () {
+    'use strict';
+    const detailEl = document.querySelector('textarea[name="task_detail"]');
+    const subjectEl = document.querySelector('input[name="email_subject"]');
+    if (detailEl && subjectEl) {
+        function syncSubject() {
+            const val = (detailEl.value || '').trim();
+            subjectEl.value = val.length > 25 ? val.slice(0, 25) : val;
+        }
+        detailEl.addEventListener('input', syncSubject);
+        if (detailEl.value.trim()) syncSubject();
+    }
+})();
+</script>
 {% endblock %}
