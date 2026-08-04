@@ -826,9 +826,9 @@ def reports_page(request):
         'monthly_closed':   Task.objects.filter(status='Closed', closed_at__gte=month_start).count(),
         'sla_compliance':   0,
         'trend':            trend,
-        'weekly_trend':     weekly_trend,
-        'monthly_trend':    monthly_trend,
-        'yearly_trend':     yearly_trend,
+        'weekly_trend':     json.dumps(weekly_trend),
+        'monthly_trend':    json.dumps(monthly_trend),
+        'yearly_trend':     json.dumps(yearly_trend),
     }
     cache.set(CACHE_REPORTS, report, TTL_REPORTS)
     return render(request, 'tasks/reports.html', {'report': report})
