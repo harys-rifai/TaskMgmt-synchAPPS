@@ -817,7 +817,7 @@ def reports_page(request):
         'closed_today':     Task.objects.filter(status='Closed', closed_at__gte=today_start).count(),
         'overdue':          Task.objects.filter(
                                 status__in=['Open', 'Assigned', 'In Progress'],
-                                closed_at__lt=now,
+                                created_at__lt=now - timedelta(days=7),
                             ).count(),
         'weekly_created':   Task.objects.filter(created_at__gte=week_start).count(),
         'weekly_closed':    Task.objects.filter(status='Closed', closed_at__gte=week_start).count(),
