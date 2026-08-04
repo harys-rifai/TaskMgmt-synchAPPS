@@ -306,9 +306,9 @@
         });
     }
 
-    var weeklyData = JSON.parse({{ report.weekly_trend|default:"[]"|safe }});
-    var monthlyData = JSON.parse({{ report.monthly_trend|default:"[]"|safe }});
-    var yearlyData = JSON.parse({{ report.yearly_trend|default:"[]"|safe }});
+    var weeklyData = {{ report.weekly_trend|default:"[]"|safe }};
+    var monthlyData = {{ report.monthly_trend|default:"[]"|safe }};
+    var yearlyData = {{ report.yearly_trend|default:"[]"|safe }};
 
     var wLabels = weeklyData.map(function(d){ return d.label; });
     var wCreated = weeklyData.map(function(d){ return d.created; });
