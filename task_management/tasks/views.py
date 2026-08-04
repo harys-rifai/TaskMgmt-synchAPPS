@@ -830,7 +830,7 @@ def reports_page(request):
 
     now         = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start  = today_start - timedelta(days=7)
+    week_start  = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
 
     # 7-day trend (weekly)
