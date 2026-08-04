@@ -74,7 +74,7 @@ def _get_dashboard_metrics():
     cached = cache.get(CACHE_DASHBOARD)
     if cached is not None:
         return cached
-    now = datetime.now()
+    now = timezone.now()
     data = {
         'total':         Task.objects.count(),
         'open':          Task.objects.filter(status='Open').count(),
