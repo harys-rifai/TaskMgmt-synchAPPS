@@ -34,6 +34,11 @@ urlpatterns = [
     path('tasks/board/',    v.task_list_page,        name='task-board'),
     path('tasks/rows/',     v.task_rows_partial,     name='task-rows'),
 
+    # Task import (CSV / Excel)
+    path('tasks/import/',          v.task_import_page,     name='task-import'),
+    path('tasks/import/confirm/',  v.task_import_confirm,  name='task-import-confirm'),
+    path('tasks/import/template/', v.task_import_template, name='task-import-template'),
+
     # Task create
     path('tasks/create/',   v.task_create_page,      name='task-create'),
 

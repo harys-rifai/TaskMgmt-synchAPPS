@@ -17,6 +17,14 @@ from django.db.models import Count, Q
 from django.db import IntegrityError
 from django.conf import settings
 from django.core.cache import cache
+import csv
+import io
+import json
+import openpyxl
+from datetime import datetime, timedelta
+from django.db import IntegrityError
+from django.conf import settings
+from django.core.cache import cache
 import json
 import requests
 import subprocess
@@ -1813,6 +1821,331 @@ def backup_page(request):
         'message_type': message_type,
         'backups': backups,
     })
+
+
+# ---------------------------------------------------------------------------
+# CSV / Excel Import with validation and editable preview
+# ---------------------------------------------------------------------------
+
+IMPORT_FIELD_MAP = {
+    'email_from':    ['email from', 'from', 'email_from', 'from email', 'email'],
+    'email_subject': ['subject', 'email subject', 'email_subject', 'title', 'judul'],
+    'task_type':     ['type', 'task type', 'task_type', 'category', 'kategori'],
+    'task_detail':   ['detail', 'task detail', 'task_detail', 'description', 'deskripsi', 'desc'],
+    'priority':      ['priority', 'prio', 'prioritas'],
+    'status':        ['status', 'state', 'status task'],
+    'assign_to':     ['assign', 'assigned to', 'assign_to', 'team', 'assignee', 'tim'],
+    'note':          ['note', 'notes', 'catatan', 'remark', 'remarks'],
+    'job_id':        ['job id', 'job_id', 'id', 'job', 'kode'],
+}
+
+IMPORT_REQUIRED_FIELDS = ['email_from', 'email_subject', 'task_type', 'task_detail', 'priority']
+
+IMPORT_DEFAULTS = {
+    'priority': 'Medium',
+    'status': 'Open',
+}
+
+
+def _normalize_header(header):
+    return header.strip().lower()
+
+
+def _map_headers(raw_headers):
+    mapped = {}
+    for raw in raw_headers:
+        norm = _normalize_header(raw)
+        for field, aliases in IMPORT_FIELD_MAP.items():
+            if norm in aliases:
+                mapped[field] = raw
+                break
+    return mapped
+
+
+def _parse_import_file(uploaded_file):
+    filename = uploaded_file.name.lower()
+    if filename.endswith('.csv'):
+        text = uploaded_file.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(text))
+        raw_headers = reader.fieldnames or []
+        rows = list(reader)
+    elif filename.endswith(('.xlsx', '.xls')):
+        wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
+        ws = wb.active
+        raw_headers = []
+        rows = []
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i == 0:
+                raw_headers = [str(c) if c is not None else '' for c in row]
+            else:
+                rows.append({str(h) if h is not None else f'col_{j}': (c if c is not None else '') for j, (h, c) in enumerate(zip(raw_headers, row))})
+        wb.close()
+    else:
+        raise ValueError('Unsupported file format. Please upload CSV or Excel (.xlsx/.xls).')
+    return raw_headers, rows
+
+
+def _validate_row(row, index, existing_job_ids, teams_list):
+    errors = {}
+    mapped = _map_headers(list(row.keys()))
+    team_names = {t.name.lower(): t.name for t in teams_list}
+
+    for field in IMPORT_REQUIRED_FIELDS:
+        raw_key = mapped.get(field)
+        value = row.get(raw_key, '').strip() if raw_key else ''
+        if not value:
+            errors[field] = 'This field is required.'
+
+    if 'email_from' not in errors:
+        email = row.get(mapped.get('email_from', ''), '').strip()
+        if email and '@' not in email:
+            errors['email_from'] = 'Invalid email format.'
+
+    if 'priority' not in errors or 'priority' in errors:
+        priority = row.get(mapped.get('priority', ''), 'Medium').strip()
+        if priority and priority not in PRIORITY_CHOICES:
+            errors['priority'] = f'Must be one of: {", ".join(PRIORITY_CHOICES)}.'
+
+    status = row.get(mapped.get('status', ''), 'Open').strip()
+    if status and status not in STATUS_CHOICES:
+        errors['status'] = f'Must be one of: {", ".join(STATUS_CHOICES)}.'
+
+    assign_raw = row.get(mapped.get('assign_to', ''), '').strip()
+    if assign_raw:
+        if assign_raw.lower() not in team_names:
+            errors['assign_to'] = f'Team "{assign_raw}" not found.'
+
+    job_id = row.get(mapped.get('job_id', ''), '').strip()
+    if job_id:
+        if job_id in existing_job_ids:
+            errors['job_id'] = 'Duplicate job ID.'
+        else:
+            existing_job_ids.add(job_id)
+
+    return errors, mapped
+
+
+def _row_to_dict(row, mapped):
+    return {
+        'email_from':    row.get(mapped.get('email_from', ''), '').strip(),
+        'email_subject': row.get(mapped.get('email_subject', ''), '').strip(),
+        'task_type':     row.get(mapped.get('task_type', ''), '').strip(),
+        'task_detail':   row.get(mapped.get('task_detail', ''), '').strip(),
+        'priority':      row.get(mapped.get('priority', ''), 'Medium').strip() or 'Medium',
+        'status':        row.get(mapped.get('status', ''), 'Open').strip() or 'Open',
+        'assign_to':     row.get(mapped.get('assign_to', ''), '').strip(),
+        'note':          row.get(mapped.get('note', ''), '').strip(),
+        'job_id':        row.get(mapped.get('job_id', ''), '').strip(),
+    }
+
+
+@login_required
+def task_import_page(request):
+    preview_rows = None
+    preview_data_json = ''
+    error_message = ''
+    info_message = ''
+    import_type = ''
+
+    if request.method == 'POST':
+        if request.POST.get('action') == 'confirm':
+            return task_import_confirm(request)
+
+        uploaded = request.FILES.get('import_file')
+        if not uploaded:
+            error_message = 'Please select a file to upload.'
+        else:
+            try:
+                raw_headers, rows = _parse_import_file(uploaded)
+                if not rows:
+                    error_message = 'The file is empty or has no data rows.'
+                else:
+                    mapped = _map_headers(raw_headers)
+                    required_missing = [f for f in IMPORT_REQUIRED_FIELDS if f not in mapped]
+                    if required_missing:
+                        error_message = (
+                            f'Missing required column(s): {", ".join(required_missing)}. '
+                            f'Please ensure your file has headers that match: '
+                            f'{", ".join(IMPORT_REQUIRED_FIELDS)}.'
+                        )
+                    else:
+                        teams_list = list(Team.objects.all())
+                        existing_job_ids = set(Task.objects.values_list('job_id', flat=True))
+                        preview_rows = []
+                        has_errors = False
+                        for idx, row in enumerate(rows):
+                            errors, row_mapped = _validate_row(row, idx, existing_job_ids, teams_list)
+                            if errors:
+                                has_errors = True
+                            preview_rows.append({
+                                'index': idx,
+                                'data': _row_to_dict(row, row_mapped),
+                                'errors': errors,
+                                'has_errors': bool(errors),
+                            })
+                        info_message = (
+                            f'Parsed {len(rows)} row(s). '
+                            f'{sum(1 for r in preview_rows if r["has_errors"])} row(s) have validation issues.'
+                        )
+                        preview_data_json = json.dumps([r['data'] for r in preview_rows])
+                        import_type = 'preview'
+            except ValueError as e:
+                error_message = str(e)
+            except Exception as e:
+                error_message = f'Failed to parse file: {e}'
+
+    if import_type != 'preview':
+        preview_rows = None
+
+    return render(request, 'tasks/task_import.html', {
+        'preview_rows': preview_rows,
+        'preview_data_json': preview_data_json,
+        'error_message': error_message,
+        'info_message': info_message,
+        'import_type': import_type,
+        'teams': Team.objects.filter(is_active=True),
+        'status_choices': STATUS_CHOICES,
+        'priority_choices': PRIORITY_CHOICES,
+    })
+
+
+@login_required
+def task_import_confirm(request):
+    if request.method != 'POST':
+        return redirect('task-import')
+
+    preview_data_json = request.POST.get('preview_data', '[]')
+    try:
+        original_data = json.loads(preview_data_json)
+    except json.JSONDecodeError:
+        original_data = []
+
+    if not original_data:
+        return render(request, 'tasks/task_import.html', {
+            'error_message': 'No data to import.',
+            'import_type': '',
+            'teams': Team.objects.filter(is_active=True),
+            'status_choices': STATUS_CHOICES,
+            'priority_choices': PRIORITY_CHOICES,
+        })
+
+    teams_list = list(Team.objects.all())
+    existing_job_ids = set(Task.objects.values_list('job_id', flat=True))
+    team_map = {t.name.lower(): t for t in teams_list}
+
+    created = 0
+    updated = 0
+    skipped = 0
+    errors = []
+
+    for idx, original in enumerate(original_data):
+        edited = {
+            'email_from':    request.POST.get(f'row_{idx}__email_from', original.get('email_from', '')).strip(),
+            'email_subject': request.POST.get(f'row_{idx}__email_subject', original.get('email_subject', '')).strip(),
+            'task_type':     request.POST.get(f'row_{idx}__task_type', original.get('task_type', '')).strip(),
+            'task_detail':   request.POST.get(f'row_{idx}__task_detail', original.get('task_detail', '')).strip(),
+            'priority':      request.POST.get(f'row_{idx}__priority', original.get('priority', 'Medium')).strip() or 'Medium',
+            'status':        request.POST.get(f'row_{idx}__status', original.get('status', 'Open')).strip() or 'Open',
+            'assign_to':     request.POST.get(f'row_{idx}__assign_to', original.get('assign_to', '')).strip(),
+            'note':          request.POST.get(f'row_{idx}__note', original.get('note', '')).strip(),
+            'job_id':        request.POST.get(f'row_{idx}__job_id', original.get('job_id', '')).strip(),
+        }
+
+        row_errors = []
+        for field in IMPORT_REQUIRED_FIELDS:
+            if not edited.get(field):
+                row_errors.append(f'{field} is required.')
+
+        if edited.get('email_from') and '@' not in edited['email_from']:
+            row_errors.append('Invalid email format.')
+
+        if edited.get('priority') not in PRIORITY_CHOICES:
+            row_errors.append(f'Priority must be one of: {", ".join(PRIORITY_CHOICES)}.')
+
+        if edited.get('status') not in STATUS_CHOICES:
+            row_errors.append(f'Status must be one of: {", ".join(STATUS_CHOICES)}.')
+
+        assign_name = edited.get('assign_to', '').strip()
+        if assign_name:
+            if assign_name.lower() not in team_map:
+                row_errors.append(f'Team "{assign_name}" not found.')
+            else:
+                edited['assign_to'] = team_map[assign_name.lower()]
+        else:
+            edited['assign_to'] = None
+
+        job_id = edited.get('job_id', '').strip()
+        if job_id:
+            if job_id in existing_job_ids:
+                row_errors.append('Duplicate job ID.')
+            else:
+                existing_job_ids.add(job_id)
+        else:
+            edited['job_id'] = Task.get_next_job_id()
+
+        if row_errors:
+            skipped += 1
+            errors.append({'row': idx + 1, 'errors': row_errors})
+            continue
+
+        try:
+            task, task_created = Task.objects.update_or_create(
+                job_id=edited['job_id'],
+                defaults={
+                    'email_from':    edited['email_from'],
+                    'email_subject': edited['email_subject'],
+                    'task_type':     edited['task_type'],
+                    'task_detail':   edited['task_detail'],
+                    'priority':      edited['priority'],
+                    'status':        edited['status'],
+                    'assign_to':     edited['assign_to'],
+                    'note':          edited['note'],
+                    'source':        'import',
+                },
+            )
+            if task_created:
+                created += 1
+            else:
+                updated += 1
+        except Exception as e:
+            skipped += 1
+            errors.append({'row': idx + 1, 'errors': [str(e)]})
+
+    _invalidate_task_caches()
+    result = {
+        'created': created,
+        'updated': updated,
+        'skipped': skipped,
+        'errors': errors,
+        'total': len(original_data),
+    }
+
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if skipped == 0 else 'alert-warning'
+        icon = 'fa-circle-check' if skipped == 0 else 'fa-triangle-exclamation'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0">'
+            f'<i class="fa {icon} me-1"></i>'
+            f'Imported {created + updated} of {len(original_data)} rows '
+            f'(created: {created}, updated: {updated}, skipped: {skipped}).'
+        )
+        if errors:
+            html += '<hr class="my-1"><small class="text-danger">'
+            html += '<br>'.join([f'Row {e["row"]}: {", ".join(e["errors"])}' for e in errors])
+            html += '</small>'
+        html += '</div>'
+        return HttpResponse(html)
+    return redirect('task-list')
+
+
+@login_required
+def task_import_template(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="task_import_template.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note'])
+    writer.writerow(['SCRQ1', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note'])
+    return response
 
 
 # ---------------------------------------------------------------------------
