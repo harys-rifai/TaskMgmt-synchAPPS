@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.contrib import messages
+from django.middleware.csrf import get_token
 from django.utils.html import format_html
 from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig
 from .forms import DatabaseConfigForm, PasswordShowHideWidget
@@ -46,11 +47,10 @@ class EmailConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_emailconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -71,20 +71,6 @@ class EmailConfigAdmin(admin.ModelAdmin):
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_emailconfig_change', args=[pk]))
 
-    def response_change(self, request, obj):
-        if '_test_email' in request.POST:
-            from django.contrib import messages
-            from .views import _test_email_config
-            result = _test_email_config(obj, obj.username)
-            level = messages.SUCCESS if result['ok'] else messages.ERROR
-            messages.add_message(request, level, result['message'])
-        return super().response_change(request, obj)
-
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['show_test_button'] = True
-        return super().change_view(request, object_id, form_url, extra_context)
-
 
 @admin.register(N8nConfig)
 class N8nConfigAdmin(admin.ModelAdmin):
@@ -98,11 +84,10 @@ class N8nConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_n8nconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -123,11 +108,6 @@ class N8nConfigAdmin(admin.ModelAdmin):
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_n8nconfig_change', args=[pk]))
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['show_test_button'] = True
-        return super().change_view(request, object_id, form_url, extra_context)
-
 
 @admin.register(TaskSync)
 class TaskSyncAdmin(admin.ModelAdmin):
@@ -145,11 +125,10 @@ class RedisConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_redisconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -169,11 +148,6 @@ class RedisConfigAdmin(admin.ModelAdmin):
         level = messages.SUCCESS if result['ok'] else messages.ERROR
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_redisconfig_change', args=[pk]))
-
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['show_test_button'] = True
-        return super().change_view(request, object_id, form_url, extra_context)
 
 
 @admin.register(AssignmentRule)
@@ -195,11 +169,10 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_clickupconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -220,11 +193,6 @@ class ClickUpConfigAdmin(admin.ModelAdmin):
         self.message_user(request, result['message'], level=level)
         return HttpResponseRedirect(reverse('admin:tasks_clickupconfig_change', args=[pk]))
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['show_test_button'] = True
-        return super().change_view(request, object_id, form_url, extra_context)
-
 
 @admin.register(DatabaseConfig)
 class DatabaseConfigAdmin(admin.ModelAdmin):
@@ -236,11 +204,10 @@ class DatabaseConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_databaseconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -274,11 +241,10 @@ class WhatsAppConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_whatsappconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -312,11 +278,10 @@ class TelegramConfigAdmin(admin.ModelAdmin):
 
     def test_connection(self, obj):
         return format_html(
-            '<form method="post" action="{}" style="display:inline;">{{% csrf_token %}}<button type="submit" class="btn btn-sm btn-outline-success py-0">Test</button></form>',
+            '<a href="{}" class="button">Test</a>',
             reverse('admin:tasks_telegramconfig_test', args=[obj.pk])
         )
     test_connection.short_description = 'Test Connection'
-    test_connection.allow_tags = True
 
     def get_urls(self):
         urls = super().get_urls()
@@ -340,7 +305,7 @@ class TelegramConfigAdmin(admin.ModelAdmin):
 
 @admin.register(ActionNetworkConfig)
 class ActionNetworkConfigAdmin(admin.ModelAdmin):
-    list_display = ('webhook_url', 'is_active')
+    list_display = ('webhook_url', 'is_active', 'test_connection')
     list_filter = ('is_active',)
     search_fields = ('webhook_url',)
     readonly_fields = ('updated_at',)
@@ -348,6 +313,32 @@ class ActionNetworkConfigAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         return _mask_sensitive_fields(form)
+
+    def test_connection(self, obj):
+        return format_html(
+            '<a href="{}" class="button">Test</a>',
+            reverse('admin:tasks_actionnetworkconfig_test', args=[obj.pk])
+        )
+    test_connection.short_description = 'Test Connection'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:pk>/test/',
+                self.admin_site.admin_view(self.test_view),
+                name='tasks_actionnetworkconfig_test',
+            ),
+        ]
+        return custom_urls + urls
+
+    def test_view(self, request, pk):
+        from .views import _test_action_network_config
+        obj = self.get_object(request, pk)
+        result = _test_action_network_config(obj)
+        level = messages.SUCCESS if result['ok'] else messages.ERROR
+        self.message_user(request, result['message'], level=level)
+        return HttpResponseRedirect(reverse('admin:tasks_actionnetworkconfig_change', args=[pk]))
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}

@@ -263,7 +263,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 @login_required
-@login_required
 def partial_by_status(request):
     data = (
         cache.get(CACHE_BY_STATUS)
@@ -788,23 +787,6 @@ def reports_page(request):
 
 
 # ---------------------------------------------------------------------------
-# Template views — Admin page
-# ---------------------------------------------------------------------------
-
-@login_required
-def admin_page(request):
-    if request.method == 'POST' and request.POST.get('flush_cache'):
-        cache.clear()
-    teams = Team.objects.all()
-    email_cfg = EmailConfig.get()
-    return render(request, 'tasks/admin_page.html', {
-        'teams':      teams,
-        'email_cfg':  email_cfg,
-        'presets':    json.dumps(PROVIDER_PRESETS),
-    })
-
-
-# ---------------------------------------------------------------------------
 # Email configuration views
 # ---------------------------------------------------------------------------
 
@@ -917,9 +899,10 @@ def _auto_check_connections():
     telegram_cfg = TelegramConfig.get()
     database_cfg = DatabaseConfig.get()
     redis_cfg = RedisConfig.get()
+    action_network_cfg = ActionNetworkConfig.get()
 
     results = {}
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         futures = {
             executor.submit(_run_test, _test_email_config, email_cfg): 'email',
             executor.submit(_run_test, _test_n8n_config, n8n_cfg): 'n8n',
@@ -928,12 +911,13 @@ def _auto_check_connections():
             executor.submit(_run_test, _test_telegram_config, telegram_cfg): 'telegram',
             executor.submit(_run_test, _test_database_config, database_cfg): 'database',
             executor.submit(_run_test, _test_redis_config, redis_cfg): 'redis',
+            executor.submit(_run_test, _test_action_network_config, action_network_cfg): 'action_network',
         }
         for future in as_completed(futures):
             key = futures[future]
             results[key] = future.result()
 
-    for key in ('email', 'n8n', 'clickup', 'whatsapp', 'telegram', 'database', 'redis'):
+    for key in ('email', 'n8n', 'clickup', 'whatsapp', 'telegram', 'database', 'redis', 'action_network'):
         results.setdefault(key, {'ok': False, 'message': 'Check failed'})
 
     return results
@@ -1259,6 +1243,25 @@ def database_config_test(request, cfg=None):
         )
         return HttpResponse(html)
     return redirect('admin-page')
+
+
+def _test_action_network_config(cfg):
+    """Test the Action Network API key by fetching the authenticated user's tags."""
+    if not cfg.api_key:
+        return {'ok': False, 'message': 'Action Network is not configured. Save an API key first.'}
+    try:
+        resp = requests.get(
+            'https://actionnetwork.org/api/v2/',
+            headers={'OSDI-API-Token': cfg.api_key},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            return {'ok': True, 'message': 'Action Network API key is valid.'}
+        if resp.status_code in (401, 403):
+            return {'ok': False, 'message': 'Unauthorized. The API key is invalid or has been revoked.'}
+        return {'ok': False, 'message': f'Action Network responded with status {resp.status_code}.'}
+    except Exception as e:
+        return {'ok': False, 'message': f'Connection failed: {e}'}
 
 
 def _test_whatsapp_config(cfg):

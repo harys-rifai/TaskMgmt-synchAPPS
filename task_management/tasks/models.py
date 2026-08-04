@@ -235,8 +235,9 @@ class ClickUpConfig(models.Model):
 
 class WhatsAppConfig(models.Model):
     api_token        = models.TextField(blank=True, help_text='WhatsApp Business API token')
-    phone_number_id  = models.CharField(max_length=255, blank=True, help_text='WhatsApp Phone Number ID')
+    phone_number_id  = models.CharField(max_length=255, blank=True, help_text='WhatsApp Phone Number ID (sender)')
     business_account_id = models.CharField(max_length=255, blank=True, help_text='WhatsApp Business Account ID')
+    to_phone_number  = models.CharField(max_length=50, blank=True, help_text='Recipient phone number in E.164 format, e.g. +628123456789')
     is_active        = models.BooleanField(default=True, help_text='Enable WhatsApp integration')
     updated_at       = models.DateTimeField(auto_now=True)
 
