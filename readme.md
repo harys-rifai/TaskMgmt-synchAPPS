@@ -26,8 +26,26 @@ Panduan lengkap untuk membangun sistem otomasi email manajemen tugas menggunakan
 
 <p align="left"> <img src="https://komarev.com/ghpvc/?username=harys-rifai&label=Profile%20views&color=0e75b6&style=flat" alt="harys-rifai" /> </p>
 
-# 💫 About Me:
-Backend Developer passionate about building scalable, secure, and high-performance systems using Python and Django. Experienced in designing REST APIs, real-time architectures, background task processing, and automation workflows. I enjoy solving complex engineering problems, optimizing backend performance, and turning innovative ideas into production-ready solutions.<br><br>Currently exploring system design, distributed systems, AI-powered automation, and scalable SaaS architectures.<br>
+<h2>💫 About Me</h2>
+
+<p>
+  Backend Developer and <strong>Database Architect</strong> with experience in building
+  scalable, secure, and high-performance systems using <strong>Python</strong> and
+  <strong>Django</strong>. Skilled in database architecture, data modeling, query optimization,
+  API integration, real-time systems, and automation workflows.
+</p>
+
+<p>
+  Experienced with <strong>PostgreSQL, IBM Db2, MariaDB, CynosDB, Redis, Oracle Database,
+  and Microsoft SQL Server</strong>, focusing on performance tuning, indexing strategies,
+  data migration, and enterprise-grade data solutions.
+</p>
+
+<p>
+  Passionate about solving complex technical challenges and continuously expanding expertise in
+  <strong>System Design, Distributed Systems, AI-Powered Automation, Cloud Infrastructure,
+  and Scalable SaaS Architecture</strong>.
+</p>
 
 
 ## 🌐 Socials:  [![LinkedIn](https://img.shields.io/badge/LinkedIn-%230077B5.svg?logo=linkedin&logoColor=white)](https://linkedin.com/in/haris-rifai) [![email](https://img.shields.io/badge/Email-D14836?logo=gmail&logoColor=white)](mailto:harysrifai@gmail.com) 
