@@ -36,6 +36,12 @@
                     <i class="fa fa-user me-1"></i>{{ task.assign_to.name }}
                 </div>
                 {% endif %}
+                {% if task.dbname or task.userid %}
+                <div class="small text-muted text-truncate">
+                    {% if task.dbname %}<span class="badge bg-secondary text-bg" style="font-size:.55rem;">DB: {{ task.dbname|truncatechars:12 }}</span>{% endif %}
+                    {% if task.userid %}<span class="badge bg-secondary text-bg" style="font-size:.55rem;">User: {{ task.userid|truncatechars:12 }}</span>{% endif %}
+                </div>
+                {% endif %}
             </div>
             <div class="card-footer bg-white py-1 px-2 d-flex justify-content-end gap-1">
                 <button class="btn btn-xs btn-outline-secondary py-0 me-1"

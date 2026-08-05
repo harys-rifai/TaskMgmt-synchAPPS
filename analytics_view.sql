@@ -21,10 +21,14 @@ SELECT
     t.status,
     t.source,
     t.external_id,
+    t.dbname,
+    t.userid,
     t.assign_to_id,
     team.name AS assign_to_name,
-    -- target_name: mengekstrak target (IP, server, database, aplikasi) dari task_detail
+    -- target_name: use dbname field if set, otherwise extract from task_detail
     CASE
+        WHEN t.dbname != '' AND t.dbname IS NOT NULL THEN t.dbname
+
         -- IP address
         WHEN t.task_detail ~ '\m(\d{1,3}\.){3}\d{1,3}\M'
         THEN 'IP: ' || (SELECT c FROM (SELECT regexp_match(t.task_detail, '(\d{1,3}\.){3}\d{1,3}') AS m) s, unnest(s.m) AS c LIMIT 1)

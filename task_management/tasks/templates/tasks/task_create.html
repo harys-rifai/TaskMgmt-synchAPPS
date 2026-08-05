@@ -71,6 +71,16 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Database Name</label>
+                    <input type="text" name="dbname" class="form-control"
+                           value="{{ form_data.dbname|default:'' }}" placeholder="e.g., postgres-prod, redis-cache">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">User ID</label>
+                    <input type="text" name="userid" class="form-control"
+                           value="{{ form_data.userid|default:'' }}" placeholder="e.g., john.doe, user123">
+                </div>
                 <div class="col-12">
                     <label class="form-label fw-semibold">Task Detail <span class="text-danger">*</span></label>
                     <textarea name="task_detail" class="form-control {% if errors.task_detail %}is-invalid{% endif %}"

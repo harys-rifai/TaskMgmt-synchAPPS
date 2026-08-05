@@ -77,6 +77,8 @@ class Command(BaseCommand):
                 note=random.choice(self.SUBJECTS) + ' - additional context here.',
                 source=random.choice(['email', 'teams', 'clickup', 'whatsapp', 'telegram']),
                 external_id=f'ext-{random.randint(10000, 99999)}',
+                dbname=random.choice(['', '', '', 'postgres-prod', 'mysql-reports', 'redis-cache', 'mongo-logs']),
+                userid=random.choice(['', '', '', 'john.doe', 'jane.smith', 'admin', 'user123']),
             )
             task._seed_created_at = created_at
             task._seed_closed_at = closed_at

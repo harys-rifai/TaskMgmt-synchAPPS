@@ -167,8 +167,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'priority', 'task_type', 'assign_to']
-    search_fields = ['job_id', 'email_from', 'email_subject', 'task_detail']
+    filterset_fields = ['status', 'priority', 'task_type', 'assign_to', 'dbname', 'userid']
+    search_fields = ['job_id', 'email_from', 'email_subject', 'task_detail', 'dbname', 'userid']
     ordering_fields = ['created_at', 'updated_at', 'priority', 'status']
     ordering = ['-created_at']
 
@@ -249,6 +249,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             email_from = ''
             email_subject = title
             task_type = source.title()
+            dbname = item.get('dbname', '').strip()
+            userid = item.get('userid', '').strip()
 
             if status == 'Closed' and not item.get('updated_at'):
                 closed_at = timezone.now()
@@ -273,6 +275,8 @@ class TaskViewSet(viewsets.ModelViewSet):
                         'assign_to':  assign_to,
                         'source':    source,
                         'closed_at': closed_at,
+                        'dbname':    dbname,
+                        'userid':    userid,
                     },
                 )
                 if task_created:
@@ -580,6 +584,8 @@ def task_create_page(request):
                     status        = request.POST.get('status', 'Open'),
                     note          = request.POST.get('note', '').strip(),
                     assign_to_id  = assign_to_id,
+                    dbname        = request.POST.get('dbname', '').strip(),
+                    userid        = request.POST.get('userid', '').strip(),
                 )
             except IntegrityError:
                 job_id = Task.get_next_job_id()
@@ -593,6 +599,8 @@ def task_create_page(request):
                     status        = request.POST.get('status', 'Open'),
                     note          = request.POST.get('note', '').strip(),
                     assign_to_id  = assign_to_id,
+                    dbname        = request.POST.get('dbname', '').strip(),
+                    userid        = request.POST.get('userid', '').strip(),
                 )
             _invalidate_task_caches()
             if request.headers.get('HX-Request'):
@@ -643,6 +651,8 @@ def task_create_modal(request):
             status        = request.POST.get('status', 'Open'),
             note          = request.POST.get('note', '').strip(),
             assign_to_id  = assign_to_id,
+            dbname        = request.POST.get('dbname', '').strip(),
+            userid        = request.POST.get('userid', '').strip(),
         )
     except IntegrityError:
         job_id = Task.get_next_job_id()
@@ -656,6 +666,8 @@ def task_create_modal(request):
             status        = request.POST.get('status', 'Open'),
             note          = request.POST.get('note', '').strip(),
             assign_to_id  = assign_to_id,
+            dbname        = request.POST.get('dbname', '').strip(),
+            userid        = request.POST.get('userid', '').strip(),
         )
     _invalidate_task_caches()
 
@@ -711,6 +723,8 @@ def task_edit_page(request, pk):
             task.priority      = request.POST['priority']
             task.status        = request.POST.get('status', task.status)
             task.note          = request.POST.get('note', task.note or '').strip()
+            task.dbname        = request.POST.get('dbname', '').strip()
+            task.userid        = request.POST.get('userid', '').strip()
             task.assign_to_id  = assign_to_id
             if task.status == 'Closed' and not task.closed_at:
                 task.closed_at = timezone.now()
@@ -1765,6 +1779,8 @@ def n8n_webhook(request):
             raw = item.get('raw', {})
             task_type = item.get('task_type', source.title())
             email_from = item.get('email_from', '')
+            dbname = item.get('dbname', '').strip()
+            userid = item.get('userid', '').strip()
 
             job_id = item.get('job_id') or f'{source}-{external_id}'
 
@@ -1791,6 +1807,8 @@ def n8n_webhook(request):
                         'assign_to': assign_to,
                         'source': source,
                         'closed_at': closed_at,
+                        'dbname': dbname,
+                        'userid': userid,
                     },
                 )
                 if task_created:
@@ -1902,6 +1920,8 @@ def action_network_webhook(request):
                         'priority': priority,
                         'status': status,
                         'source': 'action_network',
+                        'dbname': item.get('dbname', ''),
+                        'userid': item.get('userid', ''),
                     },
                 )
                 if task_created:
@@ -2048,6 +2068,8 @@ IMPORT_FIELD_MAP = {
     'note':          ['note', 'notes', 'catatan', 'remark', 'remarks', 'komentar', 'comment', 'handler', 'pic', 'assigned by', 'ditugaskan'],
     'job_id':        ['job id', 'job_id', 'id', 'job', 'kode', 'ticket', 'no', 'no.', 'number', 'nomor', 'crq', 'change'],
     'create_at':     ['create at', 'create_at', 'created at', 'created_at', 'date', 'tanggal', 'tgl', 'created'],
+    'dbname':        ['dbname', 'database', 'db', 'database name', 'nama database'],
+    'userid':        ['userid', 'user id', 'user', 'user id', 'username', 'user name'],
 }
 
 IMPORT_REQUIRED_FIELDS = ['email_from', 'email_subject', 'task_type', 'task_detail', 'priority']
@@ -2143,6 +2165,8 @@ def _row_to_dict(row, mapped):
         'note':          row.get(mapped.get('note', ''), '').strip(),
         'job_id':        row.get(mapped.get('job_id', ''), '').strip(),
         'create_at':     row.get(mapped.get('create_at', ''), '').strip(),
+        'dbname':        row.get(mapped.get('dbname', ''), '').strip(),
+        'userid':        row.get(mapped.get('userid', ''), '').strip(),
     }
 
 
@@ -2258,6 +2282,8 @@ def task_import_confirm(request):
             'note':          original.get('note', '').strip(),
             'job_id':        original.get('job_id', '').strip(),
             'create_at':     original.get('create_at', '').strip(),
+            'dbname':        original.get('dbname', '').strip(),
+            'userid':        original.get('userid', '').strip(),
         }
 
         row_errors = []
@@ -2307,6 +2333,8 @@ def task_import_confirm(request):
                     'assign_to':     edited['assign_to'],
                     'note':          edited['note'],
                     'source':        'import',
+                    'dbname':        edited.get('dbname', ''),
+                    'userid':        edited.get('userid', ''),
                 },
             )
             if task_created:
@@ -2359,8 +2387,8 @@ def task_import_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="task_import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note', 'create_at'])
-    writer.writerow(['XLS-2026080001', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note', '2026-08-04 10:00:00'])
+    writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note', 'create_at', 'dbname', 'userid'])
+    writer.writerow(['XLS-2026080001', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note', '2026-08-04 10:00:00', 'postgres-prod', 'john.doe'])
     return response
 
 

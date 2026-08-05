@@ -35,6 +35,8 @@
                 {% else %}
                 <span class="text-muted small fst-italic">Unassigned</span>
                 {% endif %}
+                {% if task.dbname %}<span class="text-muted small"><i class="fa fa-database me-1"></i>{{ task.dbname }}</span>{% endif %}
+                {% if task.userid %}<span class="text-muted small"><i class="fa fa-id-badge me-1"></i>{{ task.userid }}</span>{% endif %}
                 <span class="text-muted small"><i class="fa fa-clock me-1"></i>{{ task.created_at|date:"d M Y, H:i" }}</span>
                 <span class="text-muted small"><i class="fa fa-rotate me-1"></i>{{ task.updated_at|date:"d M Y, H:i" }}</span>
             </div>

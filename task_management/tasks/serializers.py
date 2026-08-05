@@ -29,6 +29,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             'status',
             'source',
             'external_id',
+            'dbname',
+            'userid',
         ]
 
 
@@ -40,6 +42,8 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             'assign_to',
             'note',
             'closed_at',
+            'dbname',
+            'userid',
         ]
 
 
@@ -67,6 +71,8 @@ class SyncItemSerializer(serializers.Serializer):
     url         = serializers.URLField(required=False, allow_blank=True)
     raw         = serializers.DictField(required=False, default=dict)
     task_type   = serializers.CharField(required=False, allow_blank=True, default='')
+    dbname      = serializers.CharField(required=False, allow_blank=True, default='')
+    userid      = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class SyncRequestSerializer(serializers.Serializer):

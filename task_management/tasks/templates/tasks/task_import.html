@@ -61,7 +61,7 @@
     <div class="card-body">
         <ul class="mb-0 small text-muted">
             <li>Required columns: <strong>email_from</strong>, <strong>email_subject</strong>, <strong>task_type</strong>, <strong>task_detail</strong>, <strong>priority</strong></li>
-            <li>Optional columns: <strong>status</strong>, <strong>assign_to</strong>, <strong>note</strong>, <strong>job_id</strong></li>
+            <li>Optional columns: <strong>status</strong>, <strong>assign_to</strong>, <strong>note</strong>, <strong>job_id</strong>, <strong>dbname</strong>, <strong>userid</strong>, <strong>create_at</strong></li>
             <li>Column headers are case-insensitive and support aliases (e.g., "From", "Subject", "Team")</li>
             <li><strong>job_id</strong> akan otomatis dibuat jika dikosongkan (format: XLS-{YYYYMM}{NNNN}, contoh: XLS-2026080001)</li>
             <li><strong>assign_to</strong> must match an existing team name exactly</li>
@@ -106,6 +106,8 @@
                         <th>Assign To</th>
                         <th>Note</th>
                         <th>Create At</th>
+                        <th>DB Name</th>
+                        <th>User ID</th>
                         <th style="width:80px;">Errors</th>
                     </tr>
                 </thead>
@@ -190,11 +192,21 @@
                                     value="{{ row.data.note|escape }}"
                                     class="form-control form-control-sm" placeholder="Optional">
                          </td>
-                         <td>
-                             <input type="text" name="row_{{ row.index }}__create_at"
-                                    value="{{ row.data.create_at|escape }}"
-                                    class="form-control form-control-sm" placeholder="YYYY-MM-DD HH:MM:SS">
-                         </td>
+                          <td>
+                              <input type="text" name="row_{{ row.index }}__create_at"
+                                     value="{{ row.data.create_at|escape }}"
+                                     class="form-control form-control-sm" placeholder="YYYY-MM-DD HH:MM:SS">
+                          </td>
+                          <td>
+                              <input type="text" name="row_{{ row.index }}__dbname"
+                                     value="{{ row.data.dbname|escape }}"
+                                     class="form-control form-control-sm" placeholder="e.g., postgres-prod">
+                          </td>
+                          <td>
+                              <input type="text" name="row_{{ row.index }}__userid"
+                                     value="{{ row.data.userid|escape }}"
+                                     class="form-control form-control-sm" placeholder="e.g., john.doe">
+                          </td>
                          <td class="text-center small">
                             {% if row.has_errors %}
                             <span class="badge bg-danger" title="{{ row.errors|join:', ' }}">

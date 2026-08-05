@@ -117,6 +117,8 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Assigned To</th>
+                    <th>DB Name</th>
+                    <th>User ID</th>
                     <th>Created</th>
                      <th>Updated</th>
                     <th>Actions</th>
@@ -320,9 +322,17 @@
                                 <option value="{{ team.id }}">{{ team.name }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Task Detail <span class="text-danger">*</span></label>
+                         </div>
+                         <div class="col-md-3">
+                             <label class="form-label fw-semibold">Database Name</label>
+                             <input type="text" name="dbname" class="form-control" placeholder="e.g., postgres-prod">
+                         </div>
+                         <div class="col-md-3">
+                             <label class="form-label fw-semibold">User ID</label>
+                             <input type="text" name="userid" class="form-control" placeholder="e.g., john.doe">
+                         </div>
+                         <div class="col-12">
+                             <label class="form-label fw-semibold">Task Detail <span class="text-danger">*</span></label>
                             <textarea name="task_detail" class="form-control" rows="3" required></textarea>
                         </div>
                         <div class="col-12">

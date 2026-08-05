@@ -700,13 +700,15 @@ POST /task-api/tasks/
 Content-Type: application/json
 
 {
-  "job_id": "XLS2608-0001",
+  "job_id": "XLS-2026080001",
   "email_from": "user@company.com",
   "email_subject": "SAP Access",
   "task_type": "Access Request",
   "task_detail": "Create SAP Access",
   "priority": "Medium",
-  "status": "Open"
+  "status": "Open",
+  "dbname": "postgres-prod",
+  "userid": "john.doe"
 }
 ```
 
@@ -717,7 +719,7 @@ Content-Type: application/json
 ```json
 {
   "id": 1,
-  "job_id": "XLS2608-0001",
+  "job_id": "XLS-2026080001",
   "email_from": "user@company.com",
   "email_subject": "SAP Access",
   "task_type": "Access Request",
@@ -726,6 +728,10 @@ Content-Type: application/json
   "priority": "Medium",
   "note": "",
   "status": "Open",
+  "source": "",
+  "external_id": "",
+  "dbname": "postgres-prod",
+  "userid": "john.doe",
   "created_at": "2026-08-02T22:38:44+07:00",
   "updated_at": "2026-08-02T22:38:44+07:00",
   "closed_at": null
@@ -775,14 +781,16 @@ Body:
 {
   "source": "clickup",
   "items": [
-    {
-      "external_id": "clickup-123",
-      "title": "Fix login bug",
-      "description": "Users cannot login with SSO",
-      "status": "Open",
-      "priority": "High",
-      "assignee": "App Support"
-    }
+     {
+       "external_id": "clickup-123",
+       "title": "Fix login bug",
+       "description": "Users cannot login with SSO",
+       "status": "Open",
+       "priority": "High",
+       "assignee": "App Support",
+       "dbname": "postgres-prod",
+       "userid": "john.doe"
+     }
   ]
 }
 ```
@@ -810,9 +818,11 @@ Header yang didukung (dengan alias):
 - `task_detail` / detail / description / deskripsi / work order / wo
 - `priority` / prio / prioritas / level
 - `status` / state / status task / keadaan
-- `assign_to` / assign / team / assignee / tim / owner / pemilik
-- `job_id` / id / ticket / kode / crq / change / number / nomor
-- `create_at` / date / tanggal / tgl / created
+   - `assign_to` / assign / team / assignee / tim / owner / pemilik
+   - `job_id` / id / ticket / kode / crq / change / number / nomor
+   - `create_at` / date / tanggal / tgl / created
+   - `dbname` / database / db / database name / nama database
+   - `userid` / user id / user / username / user name
 
 ---
 
@@ -871,11 +881,13 @@ Content-Type: application/json
   "source": "n8n",
   "items": [
     {
-      "external_id": "ext-001",
-      "title": "Task dari n8n",
-      "description": "Detail task",
-      "status": "Open",
-      "priority": "Medium"
+       "external_id": "ext-001",
+       "title": "Task dari n8n",
+       "description": "Detail task",
+       "status": "Open",
+       "priority": "Medium",
+       "dbname": "postgres-prod",
+       "userid": "john.doe"
     }
   ]
 }
@@ -902,15 +914,11 @@ Rules diterapkan oleh assignment engine pada saat task dibuat atau di-sync dari 
 
 ---
 
-# 20. Reports & 7-Day Trend
+# 20. Reports & Calendar
 
 Halaman: `http://localhost:8000/reports/`
 
 Ringkasan kartu: Open, In Progress, Closed Today, Overdue, This Week (created/closed/avg resolution), This Month (created/closed/SLA compliance).
-
-## 7-Day Trend
-
-Tabel trend harian untuk 7 hari terakhir (dari hari ini ke 6 hari sebelumnya). Data otomatis diperbarui setiap 5 menit. Buka halaman `/reports/` untuk melihat data terkini — tanggal dan angka disesuaikan otomatis berdasarkan tanggal server.
 
 ## Calendar View
 
@@ -931,12 +939,12 @@ Open*   │  0     │  0     │  0     │  0     │  0     │  0     │  0
 \* **Open (cumulative)**: Task yang masih terbuka (belum closed) hingga akhir hari itu
 
 **Kolom:**
-- **Created**: Jumlah task dibuat pada tanggal tersebut
-- **Closed**: Jumlah task closed pada tanggal tersebut
+- **Created**: Jumlah task dibuat pada tanggal tersebut (count per date)
+- **Closed**: Jumlah task closed pada tanggal tersebut (count per date)
 - **Net**: Created − Closed (positif = bertambah, negatif = berkurang, — = nol)
 - Open cumulative: Task yang masih terbuka sampai akhir hari di kolom \*
 
-Data di atas adalah contoh ilustratif. Tanggal dan angka akan menyesuai otomatis dengan tanggal server saat halaman `/reports/` dibuka.
+Kalender menampilkan count data per date untuk 7 hari terakhir (dari hari ini ke 6 hari sebelumnya). Data otomatis diperbarui setiap 5 menit. Buka halaman `/reports/` untuk melihat data terkini — tanggal dan angka disesuaikan otomatis berdasarkan tanggal server.
 
 ## Trend Charts
 

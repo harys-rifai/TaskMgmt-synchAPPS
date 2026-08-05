@@ -36,6 +36,18 @@
             <span class="text-muted small">Assigned To</span>
             <div class="fw-semibold">{{ task.assign_to.name|default:"— Unassigned" }}</div>
         </div>
+        {% if task.dbname %}
+        <div class="col-md-6">
+            <span class="text-muted small">Database Name</span>
+            <div class="fw-semibold">{{ task.dbname }}</div>
+        </div>
+        {% endif %}
+        {% if task.userid %}
+        <div class="col-md-6">
+            <span class="text-muted small">User ID</span>
+            <div class="fw-semibold">{{ task.userid }}</div>
+        </div>
+        {% endif %}
         <div class="col-md-6">
             <span class="text-muted small">Created</span>
             <div class="fw-semibold">{{ task.created_at|date:"d M Y, H:i" }}</div>

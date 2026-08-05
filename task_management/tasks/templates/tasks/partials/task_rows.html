@@ -23,6 +23,8 @@
         {% endif %}{{ task.status }}</span>
     </td>
     <td>{{ task.assign_to.name|default:"—" }}</td>
+    <td class="text-truncate" style="max-width:100px;">{{ task.dbname|default:"" }}</td>
+    <td class="text-truncate" style="max-width:100px;">{{ task.userid|default:"" }}</td>
     <td class="text-nowrap">{{ task.created_at|date:"d M H:i" }}</td>
      <td class="text-nowrap">{{ task.updated_at|date:"d M H:i" }}</td>
     <td class="text-nowrap">
@@ -47,5 +49,5 @@
     </td>
 </tr>
 {% empty %}
-<tr><td colspan="9" class="text-center text-muted py-4">No tasks found</td></tr>
+<tr><td colspan="11" class="text-center text-muted py-4">No tasks found</td></tr>
 {% endfor %}

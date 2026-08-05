@@ -120,6 +120,10 @@ class Task(models.Model):
     )
     source       = models.CharField(max_length=20, blank=True, db_index=True)
     external_id  = models.CharField(max_length=255, blank=True, db_index=True)
+    dbname       = models.CharField(max_length=255, blank=True, db_index=True,
+                                    help_text='Database name if task relates to a specific database')
+    userid       = models.CharField(max_length=255, blank=True, db_index=True,
+                                    help_text='User ID if task relates to a specific user')
 
     class Meta:
         db_table = 'tasks_task'
@@ -164,6 +168,8 @@ class Task(models.Model):
 
     @property
     def target_name(self):
+        if self.dbname:
+            return self.dbname
         detail = self.task_detail or ''
         subject = self.email_subject or ''
         combined = f'{detail} {subject}'.lower()

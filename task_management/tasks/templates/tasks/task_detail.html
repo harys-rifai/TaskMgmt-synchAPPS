@@ -68,11 +68,21 @@
                     <dt class="col-sm-3 text-muted">Updated</dt>
                     <dd class="col-sm-9">{{ task.updated_at|date:"d M Y, H:i" }}</dd>
 
-                    {% if task.closed_at %}
-                    <dt class="col-sm-3 text-muted">Closed</dt>
-                    <dd class="col-sm-9">{{ task.closed_at|date:"d M Y, H:i" }}</dd>
-                    {% endif %}
-                </dl>
+                     {% if task.closed_at %}
+                     <dt class="col-sm-3 text-muted">Closed</dt>
+                     <dd class="col-sm-9">{{ task.closed_at|date:"d M Y, H:i" }}</dd>
+                     {% endif %}
+
+                     {% if task.dbname %}
+                     <dt class="col-sm-3 text-muted">Database Name</dt>
+                     <dd class="col-sm-9">{{ task.dbname }}</dd>
+                     {% endif %}
+
+                     {% if task.userid %}
+                     <dt class="col-sm-3 text-muted">User ID</dt>
+                     <dd class="col-sm-9">{{ task.userid }}</dd>
+                     {% endif %}
+                 </dl>
             </div>
         </div>
 
