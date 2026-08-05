@@ -10,7 +10,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for row in rows %}
+        {% for row in page_obj %}
         <tr>
             <td class="fw-semibold">{{ row.target }}</td>
             <td class="text-end">{{ row.total }}</td>
@@ -36,3 +36,51 @@
         {% endfor %}
     </tbody>
 </table>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="p-2 bg-white border-top">
+    <small class="text-muted d-block mb-1">
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+        of {{ page_obj.paginator.count }}
+    </small>
+    <nav>
+        <ul class="pagination pagination-sm mb-0 flex-wrap">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ page_obj.previous_page_number }}"
+                   hx-get="/partials/by-target/?page={{ page_obj.previous_page_number }}"
+                   hx-target="#target-analytics-container"
+                   hx-swap="innerHTML">
+                    <i class="fa fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="?page={{ num }}"
+                       hx-get="/partials/by-target/?page={{ num }}"
+                       hx-target="#target-analytics-container"
+                       hx-swap="innerHTML">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ page_obj.next_page_number }}"
+                   hx-get="/partials/by-target/?page={{ page_obj.next_page_number }}"
+                   hx-target="#target-analytics-container"
+                   hx-swap="innerHTML">
+                    <i class="fa fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

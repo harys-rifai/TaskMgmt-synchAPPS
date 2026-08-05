@@ -341,7 +341,7 @@ def partial_by_team(request):
 def dashboard_page(request):
     metrics = _get_dashboard_metrics()
     qs = Task.objects.select_related('assign_to').all()
-    paginator = Paginator(qs, 10)
+    paginator = Paginator(qs, 5)
     page_obj = paginator.get_page(request.GET.get('page', 1))
     target_analytics = _get_target_analytics()
     return render(request, 'tasks/dashboard.html', {
@@ -354,7 +354,9 @@ def dashboard_page(request):
 @login_required
 def partial_by_target(request):
     data = _get_target_analytics()
-    return render(request, 'tasks/partials/by_target.html', {'rows': data})
+    paginator = Paginator(data, 5)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'tasks/partials/by_target.html', {'page_obj': page_obj})
 
 
 # ---------------------------------------------------------------------------

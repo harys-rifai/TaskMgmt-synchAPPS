@@ -160,7 +160,7 @@ class Task(models.Model):
                 num_part = last.job_id[len(prefix):]
                 if num_part.isdigit():
                     return f'{prefix}{int(num_part) + 1:04d}'
-             return f'{prefix}0001'
+            return f'{prefix}0001'
 
     @property
     def target_name(self):

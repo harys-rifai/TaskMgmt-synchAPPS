@@ -115,6 +115,26 @@
     </div>
 </div>
 
+<!-- Target Analytics -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold">
+            <i class="fa fa-globe me-1 text-secondary"></i>Target Name Analytics
+        </span>
+        <span class="badge bg-secondary">Auto-refresh 5 min</span>
+    </div>
+    <div class="card-body p-0">
+        <div id="target-analytics-container" class="table-responsive"
+             hx-get="/partials/by-target/"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <div class="text-center text-muted py-4">
+                <i class="fa fa-spinner fa-spin fa-2x"></i> Loading analytics…
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent tasks -->
 <div class="card shadow-sm">
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">

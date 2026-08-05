@@ -14,6 +14,7 @@ Panduan lengkap untuk membangun sistem otomasi email manajemen tugas menggunakan
 - **External App Sync**: Sync dari Email, Teams, ClickUp, WhatsApp, Telegram, Action Network, n8n via API/webhook
 - **Action Network Integration**: Webhook endpoint `/webhooks/action-network/` dan test connection
 - **Backup**: Backup PostgreSQL & Redis via UI di halaman `/backup/`
+- **Data Analytics**: Target Name analytics di dashboard (database name, server, IP — dikelompokkan & ter-tag untuk report)
 - **Django Admin**: Test connection buttons untuk semua config (Email, n8n, ClickUp, Redis, Database, WhatsApp, Telegram, Action Network)
 
 ---
@@ -737,7 +738,7 @@ Content-Type: application/json
 
 | Halaman | URL | Description |
 |---------|-----|-------------|
-| Dashboard | `/dashboard/` | Executive summary |
+| Dashboard | `/dashboard/` | Executive summary + target analytics |
 | Tasks | `/tasks/` | Task list dengan search/filter, multi-view (table/board/list/card) |
 | Create Task | `/tasks/create/` | Form buat task baru |
 | Import | `/tasks/import/` | CSV/Excel import dengan validasi & editable preview |
@@ -943,6 +944,58 @@ Di bawah tabel, tersedia 3 grafik:
 - **Weekly Trend (7 days)**: Bar chart — created vs closed per hari
 - **Monthly Trend (30 days)**: Bar chart — created vs closed per hari
 - **Yearly Trend (12 months)**: Area chart — created vs closed per bulan
+
+---
+
+# 20b. Data Analytics & Target Name
+
+## Target Name Analytics (Dashboard)
+
+Dashboard (`http://localhost:8000/dashboard/`) menampilkan kartu "**Target Name Analytics**" yang mengelompokkan semua task berdasarkan **target_name** — kolom nilai yang menggabungkan database name, server name, IP address, atau aplikasi yang disebutkan dalam task detail.
+
+**Kolom target_name** diekstrak otomatis dari `task_detail` dan `email_subject`:
+- **IP address**: Pola IPv4 (contoh: `192.168.1.10`)
+- **Database/app name**: Pola seperti `api-ms-*`, `postgres*`, `mysql*`, `mongo*`, `redis-*`, `masterdata-*`
+- **Server name**: Pola `server:` atau `host:` di task detail
+- **Fallback**: `task_type` atau nama team
+
+| Target Name | Total | Open | In Progress | Closed | High Priority |
+|-------------|-------|------|-------------|--------|---------------|
+| Database | 45 | 5 | 3 | 37 | 8 |
+| SAP | 12 | 2 | 1 | 9 | 4 |
+| IP: 192.168.1.10 | 3 | 1 | 1 | 1 | 1 |
+| Network | 8 | 3 | 2 | 3 | 2 |
+
+Data otomatis refresh setiap 5 menit.
+
+## SQL Analytics View
+
+Untuk tools eksternal (Metabase, Grafana, dsb.), tersedia SQL view di file `analytics_view.sql`:
+
+```sql
+SELECT
+    job_id,
+    target_name,
+    task_type,
+    priority,
+    status,
+    assign_to_name,
+    hours_open,
+    is_overdue,
+    created_at,
+    closed_at
+FROM task_task_analytics
+WHERE created_at >= '2026-08-01'
+ORDER BY created_at DESC;
+```
+
+View ini menyertakan kolom tambahan:
+- **target_name**: kolom gabungan (IP/server/database/app)
+- **assign_to_name**: nama team yang assigned
+- **hours_open**: berapa lama task terbuka (dalam jam)
+- **is_overdue**: TRUE jika task open > 48 jam (SLA)
+
+Instalasi: `psql -U postgres -p 5008 -d taskdb -f analytics_view.sql`
 
 ---
 
