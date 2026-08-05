@@ -16,8 +16,7 @@ Panduan lengkap untuk membangun sistem otomasi email manajemen tugas menggunakan
 - **Backup**: Backup PostgreSQL & Redis via UI di halaman `/backup/`
 - **Data Analytics**: Target Name analytics di dashboard (database name, server, IP — dikelompokkan & ter-tag untuk report)
 - **Django Admin**: Test connection buttons untuk semua config (Email, n8n, ClickUp, Redis, Database, WhatsApp, Telegram, Action Network)
-
----
+ 
 ![Banner](https://qrangers.com/wp-content/uploads/2021/09/Banner-Introduction-to-3D-Animation.png)
 
 <h1 align="center">Hi ✌️, I'm Harys Rifai</h1>
