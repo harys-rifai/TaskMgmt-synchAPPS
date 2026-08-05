@@ -20,8 +20,8 @@ Panduan lengkap untuk membangun sistem otomasi email manajemen tugas menggunakan
 ---
 ![Banner](https://qrangers.com/wp-content/uploads/2021/09/Banner-Introduction-to-3D-Animation.png)
 
-<h1 align="center">Hi ✌️, I'm Abrar Zaved Sharafi</h1>
-<h3 align="center">Problem-solving journey | Beginner developer from Bangladesh</h3>
+<h1 align="center">Hi ✌️, I'm Harys Rifai</h1>
+<h3 align="center">Problem-solving journey | Beginner developer from Jakarta</h3>
 <img align="right" alt="Coding" width="400" src="https://user-images.githubusercontent.com/74038190/212749447-bfb7e725-6987-49d9-ae85-2015e3e7cc41.gif"
 
 <p align="left"> <img src="https://komarev.com/ghpvc/?username=harys-rifai&label=Profile%20views&color=0e75b6&style=flat" alt="harys-rifai" /> </p>
