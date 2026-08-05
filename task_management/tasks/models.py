@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+import re
 
 
 PROVIDER_PRESETS = {
@@ -159,8 +160,33 @@ class Task(models.Model):
                 num_part = last.job_id[len(prefix):]
                 if num_part.isdigit():
                     return f'{prefix}{int(num_part) + 1:04d}'
-            return f'{prefix}0001'
+             return f'{prefix}0001'
 
+    @property
+    def target_name(self):
+        detail = self.task_detail or ''
+        subject = self.email_subject or ''
+        combined = f'{detail} {subject}'.lower()
+
+        ip_match = re.search(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b', detail)
+        if ip_match:
+            return f'IP: {ip_match.group(1)}'
+
+        db_match = re.search(r'\b(api-ms-[a-z0-9-]+|masterdata-[a-z0-9-]+|[a-z0-9-]+db\d*|postgres[a-z0-9_]*|mysql[a-z0-9_]*|mongo[a-z0-9_]*|redis-[a-z0-9-]+)', combined)
+        if db_match:
+            return db_match.group(1).strip()
+
+        server_match = re.search(r'\b(server|host)\s*:?\s*([a-z0-9-.]+)', combined)
+        if server_match:
+            return server_match.group(2).strip()
+
+        if self.task_type:
+            return self.task_type
+
+        if self.assign_to:
+            return self.assign_to.name
+
+        return '—'
 
 class TaskSync(models.Model):
     SOURCE_CHOICES = [

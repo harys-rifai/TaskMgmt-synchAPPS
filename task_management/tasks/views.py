@@ -48,10 +48,12 @@ CACHE_BY_TEAM     = 'tasks_by_team'
 CACHE_TEAMS_ALL   = 'teams_all'
 CACHE_REPORTS     = 'reports_data'
 CACHE_TASK_TYPES  = 'task_types_list'
+CACHE_TARGET_ANALYTICS = 'target_analytics'
 
 TTL_DASHBOARD = 120
 TTL_REPORTS   = 300
 TTL_TEAMS     = 600
+TTL_ANALYTICS = 300
 
 STATUS_CHOICES = [
     'Open', 'Assigned', 'In Progress', 'Pending User',
@@ -64,7 +66,7 @@ SLA_HOURS = 48
 def _invalidate_task_caches():
     cache.delete_many([
         CACHE_DASHBOARD, CACHE_BY_STATUS, CACHE_BY_PRIORITY,
-        CACHE_BY_TEAM, CACHE_REPORTS, CACHE_TASK_TYPES,
+        CACHE_BY_TEAM, CACHE_REPORTS, CACHE_TASK_TYPES, CACHE_TARGET_ANALYTICS,
     ])
 
 
@@ -93,6 +95,39 @@ def _get_dashboard_metrics():
     }
     cache.set(CACHE_DASHBOARD, data, TTL_DASHBOARD)
     return data
+
+
+def _get_target_analytics():
+    cached = cache.get(CACHE_TARGET_ANALYTICS)
+    if cached is not None:
+        return cached
+
+    rows = []
+    for task in Task.objects.select_related('assign_to').all():
+        rows.append(task)
+
+    summary = {}
+    for task in rows:
+        target = task.target_name
+        if target not in summary:
+            summary[target] = {'total': 0, 'open': 0, 'in_progress': 0, 'closed': 0, 'high': 0}
+        summary[target]['total'] += 1
+        if task.status == 'Open':
+            summary[target]['open'] += 1
+        elif task.status == 'In Progress':
+            summary[target]['in_progress'] += 1
+        if task.status == 'Closed':
+            summary[target]['closed'] += 1
+        if task.priority == 'High':
+            summary[target]['high'] += 1
+
+    result = sorted(
+        [{'target': t, **v} for t, v in summary.items()],
+        key=lambda x: x['total'],
+        reverse=True,
+    )
+    cache.set(CACHE_TARGET_ANALYTICS, result, TTL_ANALYTICS)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -308,10 +343,18 @@ def dashboard_page(request):
     qs = Task.objects.select_related('assign_to').all()
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page', 1))
+    target_analytics = _get_target_analytics()
     return render(request, 'tasks/dashboard.html', {
         'metrics': metrics,
         'page_obj': page_obj,
+        'target_analytics': target_analytics,
     })
+
+
+@login_required
+def partial_by_target(request):
+    data = _get_target_analytics()
+    return render(request, 'tasks/partials/by_target.html', {'rows': data})
 
 
 # ---------------------------------------------------------------------------

@@ -61,6 +61,7 @@ urlpatterns = [
     path('partials/by-status/',   v.partial_by_status,   name='partial-by-status'),
     path('partials/by-priority/', v.partial_by_priority, name='partial-by-priority'),
     path('partials/by-team/',     v.partial_by_team,     name='partial-by-team'),
+    path('partials/by-target/',   v.partial_by_target,   name='partial-by-target'),
 
     # Other pages
     path('assignment/',     v.assignment_page,      name='assignment'),

@@ -911,21 +911,31 @@ Ringkasan kartu: Open, In Progress, Closed Today, Overdue, This Week (created/cl
 
 Tabel trend harian untuk 7 hari terakhir (dari hari ini ke 6 hari sebelumnya). Data otomatis diperbarui setiap 5 menit. Buka halaman `/reports/` untuk melihat data terkini — tanggal dan angka disesuaikan otomatis berdasarkan tanggal server.
 
-| Date | Created | Closed | Open (cumulative) | Net |
-|------|---------|--------|--------------------|-----|
-| Wed, 05 Aug | 0 | 0 | 0 | — |
-| Tue, 04 Aug | 1 | 1 | 0 | — |
-| Mon, 03 Aug | 18 | 18 | 0 | — |
-| Sun, 02 Aug | 5 | 5 | 0 | — |
-| Sat, 01 Aug | 0 | 0 | 0 | — |
-| Fri, 31 Jul | 0 | 0 | 0 | — |
-| Thu, 30 Jul | 1 | 1 | 0 | — |
+## Calendar View
+
+```text
+         Thu      Fri      Sat      Sun      Mon      Tue      Wed
+         30 Jul   31 Jul   1 Aug    2 Aug    3 Aug    4 Aug    5 Aug
+       ┌────────┬────────┬────────┬────────┬────────┬────────┬────────┐
+Created │  1     │  0     │  0     │  5     │  18    │  1     │  0     │
+       ├────────┼────────┼────────┼────────┼────────┼────────┼────────┤
+Closed  │  1     │  0     │  0     │  5     │  18    │  1     │  0     │
+       ├────────┼────────┼────────┼────────┼────────┼────────┼────────┤
+Net     │  —     │  —     │  —     │  —     │  —     │  —     │  —     │
+       └────────┴────────┴────────┴────────┴────────┴────────┴────────┘
+Open*   │  0     │  0     │  0     │  0     │  0     │  0     │  0     │
+       └────────┴────────┴────────┴────────┴────────┴────────┴────────┘
+```
+
+\* **Open (cumulative)**: Task yang masih terbuka (belum closed) hingga akhir hari itu
 
 **Kolom:**
 - **Created**: Jumlah task dibuat pada tanggal tersebut
 - **Closed**: Jumlah task closed pada tanggal tersebut
-- **Open (cumulative)**: Task yang masih terbuka (belum closed) hingga akhir hari itu
 - **Net**: Created − Closed (positif = bertambah, negatif = berkurang, — = nol)
+- Open cumulative: Task yang masih terbuka sampai akhir hari di kolom \*
+
+Data di atas adalah contoh ilustratif. Tanggal dan angka akan menyesuai otomatis dengan tanggal server saat halaman `/reports/` dibuka.
 
 ## Trend Charts
 
