@@ -84,6 +84,7 @@ urlpatterns = [
     # Redis configuration
     path('admin-page/redis/save/', v.redis_config_save, name='redis-config-save'),
     path('admin-page/redis/test/', v.redis_config_test, name='redis-config-test'),
+    path('admin-page/redis/start/', v.redis_config_start, name='redis-config-start'),
 
     # Database configuration
     path('admin-page/database/save/', v.database_config_save, name='database-config-save'),

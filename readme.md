@@ -4,14 +4,17 @@ Panduan lengkap untuk membangun sistem otomasi email manajemen tugas menggunakan
 
 ## Fitur
 
-- **Task Management**: CRUD tasks dengan job ID otomatis sequential (SCRQ1, SCRQ2, ...)
-- **Email Integration**: Konfigurasi SMTP via admin page (Gmail, Outlook, SendGrid, dll)
-- **n8n Integration**: Workflow automation dengan test connection di admin
+- **Task Management**: CRUD tasks dengan job ID otomatis sequential (XLS-YYYYMM0001, XLS-YYYYMM0002, ...), multi-view (table/board/list/card), search, filter, CSV/Excel import dengan preview
+- **Email Integration**: Konfigurasi SMTP via admin page (Gmail, Outlook, SendGrid, dll) dengan test connection
+- **n8n Integration**: Workflow automation dengan test connection di admin, webhook endpoint `/webhooks/n8n/`
 - **ClickUp Integration**: Sync tasks dari ClickUp dengan API token tersimpan di database
-- **Redis Cache**: Fallback otomatis dari cloud Redis ke local Redis
-- **Auto-Assignment Rules**: Keyword-based team assignment
-- **External App Sync**: Sync dari Email, Teams, ClickUp, WhatsApp, Telegram via API
-- **Django Admin**: Test connection buttons untuk semua config (Email, n8n, ClickUp, Redis)
+- **Redis Cache**: URL Redis, aktif/nonaktif, test connection, start Redis lokal otomatis, flush cache — semua dikonfigurasi via admin page
+- **Database Configuration**: Konfigurasi koneksi database (PostgreSQL/SQLite3) dengan test connection via admin page
+- **Auto-Assignment Rules**: Keyword-based team assignment dengan UI CRUD di admin page
+- **External App Sync**: Sync dari Email, Teams, ClickUp, WhatsApp, Telegram, Action Network, n8n via API/webhook
+- **Action Network Integration**: Webhook endpoint `/webhooks/action-network/` dan test connection
+- **Backup**: Backup PostgreSQL & Redis via UI di halaman `/backup/`
+- **Django Admin**: Test connection buttons untuk semua config (Email, n8n, ClickUp, Redis, Database, WhatsApp, Telegram, Action Network)
 
 ---
 
@@ -598,6 +601,20 @@ Restore taskdb:
 psql -h localhost -p 5008 -U postgres -d taskdb < taskdb_backup.sql
 ```
 
+## Backup via UI
+
+Selain perintah manual di atas, aplikasi juga menyediakan halaman backup UI di:
+
+```text
+http://localhost:8000/backup/
+```
+
+Fitur:
+- **Backup PostgreSQL**: Trigger `pg_dump` via UI, simpan ke `C:\www\n8n\backup\`
+- **Backup Redis**: Trigger `BGSAVE` via UI (RDB file dibuat di Redis server)
+- **Download**: Unduh file backup yang sudah ada
+- **Daftar backup**: Lihat semua file backup yang tersedia
+
 ---
 
 # 17. Django Task Management API
@@ -682,7 +699,7 @@ POST /task-api/tasks/
 Content-Type: application/json
 
 {
-  "job_id": "JOB-20260802-0001",
+  "job_id": "XLS2608-0001",
   "email_from": "user@company.com",
   "email_subject": "SAP Access",
   "task_type": "Access Request",
@@ -699,7 +716,7 @@ Content-Type: application/json
 ```json
 {
   "id": 1,
-  "job_id": "JOB-20260802-0001",
+  "job_id": "XLS2608-0001",
   "email_from": "user@company.com",
   "email_subject": "SAP Access",
   "task_type": "Access Request",
@@ -721,24 +738,32 @@ Content-Type: application/json
 | Halaman | URL | Description |
 |---------|-----|-------------|
 | Dashboard | `/dashboard/` | Executive summary |
-| Tasks | `/tasks/` | Task list dengan search/filter |
+| Tasks | `/tasks/` | Task list dengan search/filter, multi-view (table/board/list/card) |
+| Create Task | `/tasks/create/` | Form buat task baru |
+| Import | `/tasks/import/` | CSV/Excel import dengan validasi & editable preview |
 | Assignment | `/assignment/` | Task allocation |
 | Reports | `/reports/` | Daily/weekly/monthly reports |
-| Admin | `/admin-page/` | User, team, rules management |
+| Backup | `/backup/` | Backup PostgreSQL & Redis via UI |
+| Admin | `/admin-page/` | Konfigurasi integrasi, teams, rules, sync |
 | Admin API | `/admin/` | Django admin panel |
 
 ## Admin Page (`/admin-page/`)
 
-Halaman admin menyediakan konfigurasi terpusat untuk semua integrasi:
+Halaman admin menyediakan konfigurasi terpusat untuk semua integrasi, dengan status koneksi real-time (auto-check setiap 5 menit) dan tombol Test Connection untuk masing-masing:
 
+- **Teams**: Daftar tim yang dapat menerima task assignment
+- **Auto-Assignment Rules**: Tambah/hapus keyword-based team assignment rules (CRUD via UI)
 - **Email Configuration**: Konfigurasi SMTP (Gmail, Outlook, SendGrid, dll) dengan tombol Test Connection
 - **n8n Configuration**: Base URL, API Key, dan test connection ke n8n instance
 - **ClickUp Configuration**: API Token, Workspace ID, dan test connection ke ClickUp API
-- **Redis Cache**: URL Redis, aktif/nonaktif, test connection, dan flush cache
-- **Auto-Assignment Rules**: Tambah/hapus keyword-based team assignment rules
-- **Teams**: Daftar tim yang dapat menerima task assignment
+- **Database Configuration**: Engine (PostgreSQL/SQLite3), nama, user, password, host, port — dengan test connection
+- **Redis Cache**: URL Redis, aktif/nonaktif, test connection, start Redis lokal otomatis (jika tidak berjalan), dan flush all cache
+- **WhatsApp Configuration**: API Token, Phone Number ID, Business Account ID, to phone number, test connection
+- **Telegram Configuration**: Bot Token, Chat ID, test connection
+- **Action Network Configuration**: API Key, webhook URL, webhook secret, test connection
+- **Sync**: Sinkronisasi task dari external apps (Email, Teams, ClickUp, WhatsApp, Telegram, Action Network, n8n) ke database via modal UI atau webhook
 
-Semua kredensial (API key, token, password) disimpan di database, bukan di environment variables.
+Semua kredensial (API key, token, password) disimpan di database via model konfigurasi, bukan di environment variables. Namun, untuk environment production, database password dan REDIS_URL tetap dibaca dari environment variables / settings.py pada saat startup; perubahan di admin page memerlukan restart server untuk diterapkan ke konfigurasi Django yang sedang berjalan.
 
 ## Task Sync dari External Apps
 
@@ -761,9 +786,32 @@ Body:
 }
 ```
 
-Supported sources: `email`, `teams`, `clickup`, `whatsapp`, `telegram`
+Supported sources: `email`, `teams`, `clickup`, `whatsapp`, `telegram`, `action_network`, `n8n`
 
-Task yang sudah ada akan di-update berdasarkan `external_id`. Job ID di-generate otomatis (SCRQ1, SCRQ2, ...).
+Task yang sudah ada akan di-update berdasarkan `external_id`. Job ID di-generate otomatis (XLS-YYYYMM0001, XLS-YYYYMM0002, ...).
+
+---
+
+# 17b. CSV / Excel Import
+
+Halaman import: `http://localhost:8000/tasks/import/`
+
+Fitur:
+- Upload CSV atau Excel (.xlsx/.xls) dengan header fleksibel (dukung bahasa Indonesia & Inggris)
+- Validasi otomatis: required fields, priority/status enums, duplicate job_id, team existence
+- **Editable preview**: perbaiki data sebelum konfirmasi import
+- Download template CSV: `GET /tasks/import/template/`
+
+Header yang didukung (dengan alias):
+- `email_from` / from / email / requester / pic / contact
+- `email_subject` / subject / title / judul
+- `task_type` / type / category / kategori / tipe
+- `task_detail` / detail / description / deskripsi / work order / wo
+- `priority` / prio / prioritas / level
+- `status` / state / status task / keadaan
+- `assign_to` / assign / team / assignee / tim / owner / pemilik
+- `job_id` / id / ticket / kode / crq / change / number / nomor
+- `create_at` / date / tanggal / tgl / created
 
 ---
 
@@ -810,9 +858,34 @@ Send to Django API (POST http://localhost:8000/task-api/tasks/)
 PostgreSQL (taskdb → tasks_task table)
 ```
 
+### n8n Webhook Endpoint
+
+n8n dapat juga mengirim data langsung ke Django via webhook:
+
+```text
+POST http://localhost:8000/webhooks/n8n/
+Content-Type: application/json
+
+{
+  "source": "n8n",
+  "items": [
+    {
+      "external_id": "ext-001",
+      "title": "Task dari n8n",
+      "description": "Detail task",
+      "status": "Open",
+      "priority": "Medium"
+    }
+  ]
+}
+```
+
 ---
 
 # 19. Assignment Engine Rules
+
+Aturan assignment otomatis dikelola via admin page (`/admin-page/`) dengan UI CRUD (tambah/hapus).
+Rule default yang di-seed otomatis:
 
 ```text
 Keyword              Team
@@ -824,9 +897,46 @@ Laptop               IT Support
 Application          App Support
 ```
 
+Rules diterapkan oleh assignment engine pada saat task dibuat atau di-sync dari external apps.
+
 ---
 
-# 20. Scheduled Jobs
+# 20. Reports & 7-Day Trend
+
+Halaman: `http://localhost:8000/reports/`
+
+Ringkasan kartu: Open, In Progress, Closed Today, Overdue, This Week (created/closed/avg resolution), This Month (created/closed/SLA compliance).
+
+## 7-Day Trend
+
+Tabel trend harian untuk 7 hari terakhir (dari hari ini ke 6 hari sebelumnya). Data otomatis diperbarui setiap 5 menit. Buka halaman `/reports/` untuk melihat data terkini — tanggal dan angka disesuaikan otomatis berdasarkan tanggal server.
+
+| Date | Created | Closed | Open (cumulative) | Net |
+|------|---------|--------|--------------------|-----|
+| Wed, 05 Aug | 0 | 0 | 0 | — |
+| Tue, 04 Aug | 1 | 1 | 0 | — |
+| Mon, 03 Aug | 18 | 18 | 0 | — |
+| Sun, 02 Aug | 5 | 5 | 0 | — |
+| Sat, 01 Aug | 0 | 0 | 0 | — |
+| Fri, 31 Jul | 0 | 0 | 0 | — |
+| Thu, 30 Jul | 1 | 1 | 0 | — |
+
+**Kolom:**
+- **Created**: Jumlah task dibuat pada tanggal tersebut
+- **Closed**: Jumlah task closed pada tanggal tersebut
+- **Open (cumulative)**: Task yang masih terbuka (belum closed) hingga akhir hari itu
+- **Net**: Created − Closed (positif = bertambah, negatif = berkurang, — = nol)
+
+## Trend Charts
+
+Di bawah tabel, tersedia 3 grafik:
+- **Weekly Trend (7 days)**: Bar chart — created vs closed per hari
+- **Monthly Trend (30 days)**: Bar chart — created vs closed per hari
+- **Yearly Trend (12 months)**: Area chart — created vs closed per bulan
+
+---
+
+# 21. Scheduled Jobs
 
 ## Reminder (Setiap 4 Jam)
 
@@ -903,7 +1013,7 @@ Dengan konfigurasi ini, n8n berjalan langsung di Windows tanpa Docker, menggunak
 
 ---
 
-# 21. Push ke GitHub
+# 22. Push ke GitHub
 
 ## Windows (Git Bash / WSL)
 
@@ -935,7 +1045,7 @@ git push -u origin main
 
 ---
 
-# 22. Screenshots
+# 23. Screenshots
 
 <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
 

@@ -4,7 +4,7 @@ from django.urls import path, reverse
 from django.contrib import messages
 from django.middleware.csrf import get_token
 from django.utils.html import format_html
-from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig
+from .models import Team, Task, EmailConfig, N8nConfig, ClickUpConfig, WhatsAppConfig, TelegramConfig, DatabaseConfig, TaskSync, RedisConfig, AssignmentRule, ActionNetworkConfig, JobCounter
 from .forms import DatabaseConfigForm, PasswordShowHideWidget
 
 
@@ -155,6 +155,12 @@ class AssignmentRuleAdmin(admin.ModelAdmin):
     list_display = ('keyword', 'team', 'is_active')
     list_filter = ('is_active', 'team')
     search_fields = ('keyword', 'team__name')
+
+
+@admin.register(JobCounter)
+class JobCounterAdmin(admin.ModelAdmin):
+    list_display = ('period_yyyymm', 'last_number')
+    search_fields = ('period_yyyymm',)
 
 
 @admin.register(ClickUpConfig)

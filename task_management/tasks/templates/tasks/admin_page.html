@@ -553,6 +553,18 @@
                     </div>
                 </form>
                 <div id="redis-alert" class="mt-1"></div>
+                {% if not conn_status.redis.ok %}
+                <form method="post" action="{% url 'redis-config-start' %}"
+                      hx-post="{% url 'redis-config-start' %}"
+                      hx-target="#redis-alert"
+                      hx-swap="innerHTML"
+                      class="mt-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                        <i class="fa fa-play me-1"></i>Start Redis
+                    </button>
+                </form>
+                {% endif %}
                 <form method="post" action="/admin-page/" class="mt-2">
                     {% csrf_token %}
                     <button type="submit" name="flush_cache" value="1"

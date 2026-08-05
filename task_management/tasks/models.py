@@ -60,6 +60,20 @@ class Team(models.Model):
         return self.name
 
 
+class JobCounter(models.Model):
+    """Counter table for generating sequential job IDs per YYYYMM period.
+    Managed via the PostgreSQL ``generate_job_id()`` function for atomicity."""
+
+    period_yyyymm = models.CharField(max_length=6, unique=True)
+    last_number = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'task_job_counter'
+
+    def __str__(self):
+        return f'{self.period_yyyymm} → {self.last_number}'
+
+
 class Task(models.Model):
     job_id = models.CharField(
         max_length=50,
@@ -123,18 +137,28 @@ class Task(models.Model):
 
     @classmethod
     def get_next_job_id(cls):
+        from django.db import connection
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT generate_job_id()')
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return row[0]
+        except Exception:
+            pass
+
         from django.db import transaction
         from datetime import datetime
         now = datetime.now()
-        prefix = f'XLS{now.strftime("%y%m")}-'
+        prefix = f'XLS-{now.strftime("%Y%m")}'
         with transaction.atomic():
             last = cls.objects.filter(
                 job_id__startswith=prefix,
             ).select_for_update().order_by('-job_id').first()
             if last and last.job_id.startswith(prefix):
-                num_str = last.job_id[len(prefix):]
-                if num_str.isdigit():
-                    return f'{prefix}{int(num_str) + 1:04d}'
+                num_part = last.job_id[len(prefix):]
+                if num_part.isdigit():
+                    return f'{prefix}{int(num_part) + 1:04d}'
             return f'{prefix}0001'
 
 

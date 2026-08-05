@@ -44,14 +44,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('No active teams found. Creating with unassigned.'))
             teams = []
 
-        # Determine starting job counter
-        last = Task.objects.filter(job_id__startswith='XLS').order_by('-job_id').first()
-        start_num = 1
-        if last:
-            parts = last.job_id.split('-')
-            if len(parts) == 2 and parts[1].isdigit():
-                start_num = int(parts[1]) + 1
-
         tasks_to_create = []
         for i in range(count):
             team = random.choice(teams) if teams else None

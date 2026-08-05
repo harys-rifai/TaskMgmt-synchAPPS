@@ -838,11 +838,14 @@ def _calc_avg_resolution():
     days = int(total_seconds // 86400)
     hours = int((total_seconds % 86400) // 3600)
     minutes = int((total_seconds % 3600) // 60)
+    seconds = int(total_seconds % 60)
     if days > 0:
         return f'{days}d {hours}h'
     elif hours > 0:
         return f'{hours}h {minutes}m'
-    return f'{minutes}m'
+    elif minutes > 0:
+        return f'{minutes}m'
+    return f'{seconds}s'
 
 
 def _calc_sla_compliance(month_start):
@@ -878,8 +881,8 @@ def reports_page(request):
         weekly_trend.append({
             'label':  day_start.strftime('%a %d'),
             'created': Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
-            'closed':  Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count(),
-        })
+             'closed':  Task.objects.filter(closed_at__gte=day_start, closed_at__lt=day_end).count(),
+         })
 
     # 30-day trend (monthly)
     monthly_trend = []
@@ -889,7 +892,7 @@ def reports_page(request):
         monthly_trend.append({
             'label':  day_start.strftime('%d %b'),
             'created': Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count(),
-            'closed':  Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count(),
+            'closed':  Task.objects.filter(closed_at__gte=day_start, closed_at__lt=day_end).count(),
         })
 
     # 12-month trend (yearly)
@@ -905,37 +908,41 @@ def reports_page(request):
         yearly_trend.append({
             'label':   m_start.strftime('%b %Y'),
             'created': Task.objects.filter(created_at__gte=m_start, created_at__lt=m_next).count(),
-            'closed':  Task.objects.filter(status='Closed', closed_at__gte=m_start, closed_at__lt=m_next).count(),
+            'closed':  Task.objects.filter(closed_at__gte=m_start, closed_at__lt=m_next).count(),
         })
 
-    # 7-day trend (legacy, used by the table)
+     # 7-day trend (legacy, used by the table)
     trend = []
     for i in range(6, -1, -1):
         day_start = today_start - timedelta(days=i)
         day_end   = day_start + timedelta(days=1)
         created_count = Task.objects.filter(created_at__gte=day_start, created_at__lt=day_end).count()
-        closed_count = Task.objects.filter(status='Closed', closed_at__gte=day_start, closed_at__lt=day_end).count()
+        closed_count = Task.objects.filter(closed_at__gte=day_start, closed_at__lt=day_end).count()
         trend.append({
             'date':    day_start,
             'created': created_count,
             'closed':  closed_count,
-            'open':    Task.objects.filter(status='Open', created_at__lt=day_end).count(),
+            'open':    Task.objects.filter(
+                          created_at__lt=day_end,
+                      ).filter(
+                          Q(closed_at__isnull=True) | Q(closed_at__gt=day_end)
+                      ).count(),
             'net':     created_count - closed_count,
         })
 
     report = {
         'open':             Task.objects.filter(status='Open').count(),
         'in_progress':      Task.objects.filter(status='In Progress').count(),
-        'closed_today':     Task.objects.filter(status='Closed', closed_at__gte=today_start).count(),
+        'closed_today':     Task.objects.filter(closed_at__gte=today_start).count(),
         'overdue':          Task.objects.filter(
                                 status__in=['Open', 'Assigned', 'In Progress'],
                                 created_at__lt=today_start - timedelta(days=7),
                             ).count(),
         'weekly_created':   Task.objects.filter(created_at__gte=week_start).count(),
-        'weekly_closed':    Task.objects.filter(status='Closed', closed_at__gte=week_start).count(),
+        'weekly_closed':    Task.objects.filter(closed_at__gte=week_start).count(),
         'avg_resolution':   _calc_avg_resolution(),
         'monthly_created':  Task.objects.filter(created_at__gte=month_start).count(),
-        'monthly_closed':   Task.objects.filter(status='Closed', closed_at__gte=month_start).count(),
+        'monthly_closed':    Task.objects.filter(closed_at__gte=month_start).count(),
         'sla_compliance':   _calc_sla_compliance(month_start),
         'trend':            trend,
         'weekly_trend':     json.dumps(weekly_trend),
@@ -1315,6 +1322,62 @@ def redis_config_test(request):
         html = (
             f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
             f'<i class="fa {icon}"></i>{result["message"]}</div>'
+        )
+        return HttpResponse(html)
+    return redirect('admin-page')
+
+
+def _find_redis_server():
+    candidates = [
+        r'C:\redis\redis-server.exe',
+        r'C:\Program Files\Redis\redis-server.exe',
+        r'C:\Program Files\Redis-x64-5.0.14.1\redis-server.exe',
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    try:
+        result = subprocess.run(
+            ['where', 'redis-server'],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip().split('\n')[0]
+    except Exception:
+        pass
+    return None
+
+
+@login_required
+@require_http_methods(['POST'])
+def redis_config_start(request):
+    """Start the local Redis server."""
+    exe = _find_redis_server()
+    if not exe:
+        msg = {'ok': False, 'message': 'redis-server.exe not found. Install Redis or extract it to C:\\redis\\.'}
+    else:
+        try:
+            subprocess.Popen(
+                [exe, '--port', '6379', '--dir', os.path.dirname(exe)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
+            import time
+            time.sleep(1)
+            cfg = RedisConfig.get()
+            client = Redis.from_url(cfg.url, socket_connect_timeout=5, socket_timeout=5)
+            client.ping()
+            msg = {'ok': True, 'message': 'Redis server started successfully!'}
+        except Exception as e:
+            msg = {'ok': False, 'message': f'Failed to start Redis: {e}'}
+
+    if request.headers.get('HX-Request'):
+        status_class = 'alert-success' if msg['ok'] else 'alert-danger'
+        icon = 'fa-circle-check' if msg['ok'] else 'fa-circle-xmark'
+        html = (
+            f'<div class="alert {status_class} py-2 mb-0 d-flex align-items-center gap-2">'
+            f'<i class="fa {icon}"></i>{msg["message"]}</div>'
         )
         return HttpResponse(html)
     return redirect('admin-page')
@@ -2252,7 +2315,7 @@ def task_import_template(request):
     response['Content-Disposition'] = 'attachment; filename="task_import_template.csv"'
     writer = csv.writer(response)
     writer.writerow(['job_id', 'email_from', 'email_subject', 'task_type', 'task_detail', 'priority', 'status', 'assign_to', 'note', 'create_at'])
-    writer.writerow(['XLS2608-0001', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note', '2026-08-04 10:00:00'])
+    writer.writerow(['XLS-2026080001', 'user@example.com', 'Sample task', 'General', 'Task details here', 'Medium', 'Open', 'IT Support', 'Optional note', '2026-08-04 10:00:00'])
     return response
 
 
