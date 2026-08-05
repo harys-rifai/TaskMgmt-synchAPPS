@@ -114,7 +114,7 @@
 <!-- 7-day Trend table -->
 <div class="card shadow-sm">
     <div class="card-header bg-white fw-semibold py-2">
-        <i class="fa fa-chart-line me-2 text-secondary"></i>7-Day Trend
+        <i class="fa fa-chart-line me-2 text-secondary"></i>7-Day Calendar
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -146,15 +146,15 @@
                         {% endif %}
                     </td>
                     <td class="text-center">{{ row.open }}</td>
-                    <td>
-                        {% if row.net > 0 %}
-                        <span class="text-danger small">+{{ row.net }}</span>
-                        {% elif row.net < 0 %}
-                        <span class="text-success small">{{ row.net }}</span>
-                        {% else %}
-                        <span class="text-muted small">—</span>
-                        {% endif %}
-                    </td>
+                     <td>
+                         {% if row.net > 0 %}
+                         <span class="text-danger small">+{{ row.net }}</span>
+                         {% elif row.net < 0 %}
+                         <span class="text-success small">{{ row.net }}</span>
+                         {% else %}
+                         <span class="text-muted small">—</span>
+                         {% endif %}
+                     </td>
                 </tr>
                 {% empty %}
                 <tr>
